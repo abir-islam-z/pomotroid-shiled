@@ -1,16 +1,16 @@
 //
 //  mac_break_lock.swift
-//  Native macOS Break Screen Lock for Pomotroid
+//  Native macOS Break Screen Lock for Pomotroid Shield
 //
 //  Features:
-//  - Full-screen hardware shielding (CGShieldingWindowLevel) on ALL connected monitors
-//  - GCD DispatchSourceTimer for reliable second-by-second countdown
-//  - Real-time synchronization with Pomotroid SQLite DB and log stream
+//  - Fully synchronized with Pomotroid active theme (background, dials, text, accent)
+//  - Simple, minimalist circular progress dial matching the main Pomotroid app
+//  - Full-screen hardware shielding on all connected monitors
+//  - Real-time countdown synced with Pomotroid SQLite DB & log stream
 //  - Dynamic wall-clock unlock time (e.g. "Auto-unlocks at 5:17 PM")
-//  - Guided mindfulness breathing animation (Inhale, Hold, Exhale, Rest)
-//  - Rotating mindful break activity prompts
-//  - Seamless escape valve (ESC key) for testing & safety
-//  - First-class preview mode (--preview)
+//  - Gentle mindfulness breathing prompts
+//  - Safety ESC key handler
+//  - Instant preview mode (--preview)
 //
 
 import Cocoa
@@ -18,7 +18,113 @@ import SwiftUI
 import SQLite3
 
 // ============================================================================
-// Data Models
+// Color Extension & Theme Engine
+// ============================================================================
+
+extension Color {
+    init(hex: String) {
+        var clean = hex.trimmingCharacters(in: .whitespacesAndNewlines).replacingOccurrences(of: "#", with: "")
+        if clean.count == 6 { clean.append("FF") }
+        var rgbValue: UInt64 = 0
+        Scanner(string: clean).scanHexInt64(&rgbValue)
+        let r = Double((rgbValue & 0xFF000000) >> 24) / 255.0
+        let g = Double((rgbValue & 0x00FF0000) >> 16) / 255.0
+        let b = Double((rgbValue & 0x0000FF00) >> 8) / 255.0
+        let a = Double(rgbValue & 0x000000FF) / 255.0
+        self.init(.sRGB, red: r, green: g, blue: b, opacity: a)
+    }
+
+    var nsColor: NSColor {
+        return NSColor(self)
+    }
+}
+
+struct ThemeColors {
+    var background: Color = Color(hex: "#2f384b")
+    var backgroundLight: Color = Color(hex: "#3d4457")
+    var foreground: Color = Color(hex: "#f6f2eb")
+    var foregroundDarker: Color = Color(hex: "#c0c9da")
+    var shortRound: Color = Color(hex: "#05ec8c")
+    var focusRound: Color = Color(hex: "#ff4e4d")
+    var longRound: Color = Color(hex: "#0bbddb")
+    var accent: Color = Color(hex: "#05ec8c")
+}
+
+func loadThemeColors(themeName: String) -> ThemeColors {
+    var tc = ThemeColors()
+    let slug = themeName.lowercased().replacingOccurrences(of: " ", with: "-")
+
+    let paths = [
+        NSString(string: "~/Library/Application Support/com.abirislam.pomotroid-shield/themes/\(slug).json").expandingTildeInPath,
+        "/Users/abir/Downloads/pomotroid-with-mac-system-bridge/static/themes/\(slug).json",
+        NSString(string: "~/Library/Application Support/com.splode.pomotroid/themes/\(slug).json").expandingTildeInPath
+    ]
+
+    for path in paths {
+        if FileManager.default.fileExists(atPath: path),
+           let data = try? Data(contentsOf: URL(fileURLWithPath: path)),
+           let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+           let colors = json["colors"] as? [String: String] {
+
+            if let bg = colors["--color-background"] { tc.background = Color(hex: bg) }
+            if let bgl = colors["--color-background-light"] { tc.backgroundLight = Color(hex: bgl) }
+            if let fg = colors["--color-foreground"] { tc.foreground = Color(hex: fg) }
+            if let fgd = colors["--color-foreground-darker"] { tc.foregroundDarker = Color(hex: fgd) }
+            if let sr = colors["--color-short-round"] { tc.shortRound = Color(hex: sr) }
+            if let fr = colors["--color-focus-round"] { tc.focusRound = Color(hex: fr) }
+            if let lr = colors["--color-long-round"] { tc.longRound = Color(hex: lr) }
+            if let acc = colors["--color-accent"] { tc.accent = Color(hex: acc) }
+            break
+        }
+    }
+
+    return tc
+}
+
+func fetchActiveTheme(db: OpaquePointer?) -> ThemeColors {
+    guard let db = db else {
+        return loadThemeColors(themeName: "Pomotroid")
+    }
+
+    var themeMode = "auto"
+    var themeDark = "Pomotroid"
+    var themeLight = "Pomotroid Light"
+
+    var stmt: OpaquePointer? = nil
+    if sqlite3_prepare_v2(db, "SELECT key, value FROM settings WHERE key LIKE 'theme_%'", -1, &stmt, nil) == SQLITE_OK {
+        while sqlite3_step(stmt) == SQLITE_ROW {
+            guard let kStr = sqlite3_column_text(stmt, 0),
+                  let vStr = sqlite3_column_text(stmt, 1) else { continue }
+            let key = String(cString: kStr)
+            let val = String(cString: vStr)
+            if key == "theme_mode" { themeMode = val }
+            else if key == "theme_dark" { themeDark = val }
+            else if key == "theme_light" { themeLight = val }
+        }
+        sqlite3_finalize(stmt)
+    }
+
+    let isDarkOS: Bool
+    if #available(macOS 10.14, *) {
+        isDarkOS = NSApp.effectiveAppearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
+    } else {
+        isDarkOS = true
+    }
+
+    let activeName: String
+    if themeMode == "dark" {
+        activeName = themeDark
+    } else if themeMode == "light" {
+        activeName = themeLight
+    } else {
+        activeName = isDarkOS ? themeDark : themeLight
+    }
+
+    return loadThemeColors(themeName: activeName)
+}
+
+// ============================================================================
+// Timer State & Process Discovery
 // ============================================================================
 
 struct PomotroidTimerState {
@@ -51,23 +157,14 @@ func isPomotroidRunning() -> Bool {
     let originalApps = NSRunningApplication.runningApplications(withBundleIdentifier: "com.splode.pomotroid")
     if !originalApps.isEmpty { return true }
 
-    // Also check by process / executable name (handles `npm run tauri dev` / `target/debug/pomotroid`)
     for app in NSWorkspace.shared.runningApplications {
-        if let name = app.localizedName?.lowercased(), name.contains("pomotroid") {
-            return true
-        }
-        if let exe = app.executableURL?.lastPathComponent.lowercased(), exe.contains("pomotroid") {
-            return true
-        }
+        if let name = app.localizedName?.lowercased(), name.contains("pomotroid") { return true }
+        if let exe = app.executableURL?.lastPathComponent.lowercased(), exe.contains("pomotroid") { return true }
     }
     return false
 }
 
-func fetchPomotroidState() -> PomotroidTimerState {
-    if !isPomotroidRunning() {
-        return PomotroidTimerState(isRunning: false, roundType: "idle", totalSecs: 300, elapsedSecs: 0, remainingSecs: 0)
-    }
-
+func fetchPomotroidStateAndTheme() -> (PomotroidTimerState, ThemeColors) {
     var targetRounds = 4
     var todayRounds = 0
     var todayFocusMins = 0
@@ -75,6 +172,7 @@ func fetchPomotroidState() -> PomotroidTimerState {
     var dbDuration = 300
     var sStart: Int64 = Int64(Date().timeIntervalSince1970)
     var sEnd: Int64? = nil
+    var themeColors = ThemeColors()
 
     var dbPath = NSString(string: "~/Library/Application Support/com.abirislam.pomotroid-shield/pomotroid_shield.db").expandingTildeInPath
     if !FileManager.default.fileExists(atPath: dbPath) {
@@ -84,8 +182,10 @@ func fetchPomotroidState() -> PomotroidTimerState {
     if FileManager.default.fileExists(atPath: dbPath) {
         var db: OpaquePointer? = nil
         if sqlite3_open_v2(dbPath, &db, SQLITE_OPEN_READONLY, nil) == SQLITE_OK {
+            themeColors = fetchActiveTheme(db: db)
+
             var stmt: OpaquePointer? = nil
-            if sqlite3_prepare_v2(db, "SELECT value FROM settings WHERE key = 'work_rounds'", -1, &stmt, nil) == SQLITE_OK {
+            if sqlite3_prepare_v2(db, "SELECT value FROM settings WHERE key = 'long_break_interval'", -1, &stmt, nil) == SQLITE_OK {
                 if sqlite3_step(stmt) == SQLITE_ROW, let cStr = sqlite3_column_text(stmt, 0) {
                     if let n = Int(String(cString: cStr)) { targetRounds = n }
                 }
@@ -119,6 +219,12 @@ func fetchPomotroidState() -> PomotroidTimerState {
 
             sqlite3_close(db)
         }
+    } else {
+        themeColors = loadThemeColors(themeName: "Pomotroid")
+    }
+
+    if !isPomotroidRunning() {
+        return (PomotroidTimerState(isRunning: false, roundType: "idle", totalSecs: 300, elapsedSecs: 0, remainingSecs: 0), themeColors)
     }
 
     let totalSecs = dbDuration
@@ -200,7 +306,7 @@ func fetchPomotroidState() -> PomotroidTimerState {
     }
 
     let remainingSecs = max(0, totalSecs - elapsedSecs)
-    return PomotroidTimerState(
+    let state = PomotroidTimerState(
         isRunning: isRunning,
         roundType: roundType,
         totalSecs: totalSecs,
@@ -211,6 +317,8 @@ func fetchPomotroidState() -> PomotroidTimerState {
         todayRounds: todayRounds,
         todayFocusMins: todayFocusMins
     )
+
+    return (state, themeColors)
 }
 
 // ============================================================================
@@ -219,6 +327,7 @@ func fetchPomotroidState() -> PomotroidTimerState {
 
 class BreakLockViewModel: ObservableObject {
     @Published var state: PomotroidTimerState
+    @Published var theme: ThemeColors
     @Published var localTimeStr: String = ""
     @Published var breathGuide: String = "Inhale slowly..."
     @Published var breathScale: CGFloat = 1.0
@@ -230,14 +339,15 @@ class BreakLockViewModel: ObservableObject {
     private var previewElapsed: Double = 0.0
 
     let breathCycles: [(text: String, scale: CGFloat)] = [
-        ("Inhale gently...", 1.15),
-        ("Hold...", 1.15),
-        ("Exhale slowly...", 0.92),
+        ("Inhale gently...", 1.05),
+        ("Hold...", 1.05),
+        ("Exhale slowly...", 0.95),
         ("Rest and release...", 1.0)
     ]
 
-    init(initialState: PomotroidTimerState, isPreview: Bool = false) {
+    init(initialState: PomotroidTimerState, theme: ThemeColors, isPreview: Bool = false) {
         self.state = initialState
+        self.theme = theme
         self.isPreview = isPreview
         updateClock()
         startTimers()
@@ -277,11 +387,11 @@ class BreakLockViewModel: ObservableObject {
                 return
             }
 
-            let newState = fetchPomotroidState()
+            let (newState, newTheme) = fetchPomotroidStateAndTheme()
             self.state = newState
+            self.theme = newTheme
             self.updateClock()
 
-            // Dismiss the lock screen when break completes or changes
             if !newState.isRunning || newState.roundType != "short-break" || newState.remainingSecs <= 0 {
                 NSApp.terminate(nil)
             }
@@ -289,7 +399,6 @@ class BreakLockViewModel: ObservableObject {
         source.resume()
         self.gcdTimer = source
 
-        // Breathing cycle animation
         let bTimer = Timer(timeInterval: 3.5, repeats: true) { [weak self] _ in
             guard let self = self else { return }
             self.breathIndex = (self.breathIndex + 1) % self.breathCycles.count
@@ -310,7 +419,7 @@ class BreakLockViewModel: ObservableObject {
 }
 
 // ============================================================================
-// SwiftUI UI Views
+// Simple, Clean Pomotroid-Themed View
 // ============================================================================
 
 struct BreakLockView: View {
@@ -336,41 +445,27 @@ struct BreakLockView: View {
 
     var body: some View {
         ZStack {
-            // Background: Deep obsidian glass
-            Color(red: 7/255.0, green: 10/255.0, blue: 18/255.0)
+            // Native Theme Background
+            viewModel.theme.background
                 .ignoresSafeArea()
 
-            // Ambient background glow
-            RadialGradient(
-                gradient: Gradient(colors: [
-                    Color(red: 20/255.0, green: 184/255.0, blue: 166/255.0).opacity(0.12),
-                    Color(red: 14/255.0, green: 165/255.0, blue: 233/255.0).opacity(0.06),
-                    Color.clear
-                ]),
-                center: .center,
-                startRadius: 80,
-                endRadius: 550
-            )
-            .ignoresSafeArea()
-
-            VStack(spacing: 36) {
+            VStack(spacing: 32) {
                 // Header Bar
                 HStack {
                     HStack(spacing: 8) {
                         Image(systemName: "lock.shield.fill")
-                            .font(.system(size: 14, weight: .bold))
-                            .foregroundColor(Color(red: 45/255.0, green: 212/255.0, blue: 191/255.0))
+                            .font(.system(size: 13, weight: .bold))
+                            .foregroundColor(viewModel.theme.accent)
                         Text(viewModel.isPreview ? "POMOTROID SHIELD (PREVIEW)" : "POMOTROID SHIELD")
-                            .font(.system(size: 13, weight: .bold, design: .rounded))
+                            .font(.system(size: 12, weight: .bold, design: .rounded))
                             .tracking(2.0)
-                            .foregroundColor(.white.opacity(0.9))
+                            .foregroundColor(viewModel.theme.foreground)
                     }
                     .padding(.horizontal, 14)
                     .padding(.vertical, 7)
                     .background(
                         Capsule()
-                            .fill(Color.white.opacity(0.06))
-                            .overlay(Capsule().stroke(Color.white.opacity(0.12), lineWidth: 1))
+                            .fill(viewModel.theme.backgroundLight.opacity(0.6))
                     )
 
                     Spacer()
@@ -379,13 +474,12 @@ struct BreakLockView: View {
                         Text("PREVIEW ACTIVE • PRESS ESC TO EXIT")
                             .font(.system(size: 11, weight: .bold, design: .rounded))
                             .tracking(1.2)
-                            .foregroundColor(Color(red: 45/255.0, green: 212/255.0, blue: 191/255.0))
+                            .foregroundColor(viewModel.theme.accent)
                             .padding(.horizontal, 12)
                             .padding(.vertical, 6)
                             .background(
                                 Capsule()
-                                    .fill(Color(red: 20/255.0, green: 184/255.0, blue: 166/255.0).opacity(0.15))
-                                    .overlay(Capsule().stroke(Color(red: 20/255.0, green: 184/255.0, blue: 166/255.0).opacity(0.3), lineWidth: 1))
+                                    .fill(viewModel.theme.backgroundLight.opacity(0.8))
                             )
                     }
 
@@ -393,11 +487,11 @@ struct BreakLockView: View {
 
                     HStack(spacing: 6) {
                         Image(systemName: "clock")
-                            .font(.system(size: 13))
-                            .foregroundColor(.white.opacity(0.6))
+                            .font(.system(size: 12))
+                            .foregroundColor(viewModel.theme.foregroundDarker)
                         Text(viewModel.localTimeStr)
-                            .font(.system(size: 14, weight: .medium, design: .monospaced))
-                            .foregroundColor(.white.opacity(0.85))
+                            .font(.system(size: 13, weight: .medium, design: .monospaced))
+                            .foregroundColor(viewModel.theme.foreground)
                     }
                 }
                 .padding(.horizontal, 48)
@@ -405,61 +499,68 @@ struct BreakLockView: View {
 
                 Spacer()
 
-                // Main Circular Countdown & Breathing Ring
-                ZStack {
-                    // Outer breathing glow pulse
-                    Circle()
-                        .fill(Color(red: 20/255.0, green: 184/255.0, blue: 166/255.0).opacity(0.08))
-                        .frame(width: 320, height: 320)
-                        .scaleEffect(viewModel.breathScale)
+                // Simple, Clean Pomotroid Progress Dial (matches TimerDial.svelte)
+                VStack(spacing: 16) {
+                    ZStack {
+                        // Background track (stroke width 3, backgroundLight)
+                        Circle()
+                            .stroke(viewModel.theme.backgroundLight, lineWidth: 3)
+                            .frame(width: 250, height: 250)
 
-                    // Track ring
-                    Circle()
-                        .stroke(Color.white.opacity(0.08), lineWidth: 10)
-                        .frame(width: 250, height: 250)
+                        // Progress arc (stroke width 10, round linecap, shortRound color)
+                        Circle()
+                            .trim(from: 0.0, to: CGFloat(min(progress, 1.0)))
+                            .stroke(
+                                viewModel.theme.shortRound,
+                                style: StrokeStyle(lineWidth: 10, lineCap: .round)
+                            )
+                            .rotationEffect(.degrees(-90))
+                            .frame(width: 250, height: 250)
+                            .animation(.linear(duration: 0.25), value: progress)
 
-                    // Live progress ring
-                    Circle()
-                        .trim(from: 0.0, to: CGFloat(min(progress, 1.0)))
-                        .stroke(
-                            LinearGradient(
-                                colors: [
-                                    Color(red: 45/255.0, green: 212/255.0, blue: 191/255.0),
-                                    Color(red: 56/255.0, green: 189/255.0, blue: 248/255.0)
-                                ],
-                                startPoint: .topLeading,
-                                endPoint: .bottomTrailing
-                            ),
-                            style: StrokeStyle(lineWidth: 10, lineCap: .round)
-                        )
-                        .rotationEffect(.degrees(-90))
-                        .frame(width: 250, height: 250)
-                        .animation(.linear(duration: 0.25), value: progress)
+                        // Center content: digital time + round label
+                        VStack(spacing: 4) {
+                            Text(timeFormatted)
+                                .font(.system(size: 56, weight: .light, design: .rounded))
+                                .foregroundColor(viewModel.theme.foreground)
+                                .monospacedDigit()
 
-                    // Center Content
-                    VStack(spacing: 6) {
-                        Text("STEP AWAY & RECHARGE")
-                            .font(.system(size: 10, weight: .bold, design: .rounded))
-                            .tracking(2.5)
-                            .foregroundColor(Color(red: 45/255.0, green: 212/255.0, blue: 191/255.0))
-
-                        Text(timeFormatted)
-                            .font(.system(size: 64, weight: .light, design: .rounded))
-                            .foregroundColor(.white)
-                            .monospacedDigit()
-
-                        Text(viewModel.breathGuide)
-                            .font(.system(size: 14, weight: .medium, design: .rounded))
-                            .foregroundColor(.white.opacity(0.75))
-                            .transition(.opacity)
+                            Text("SHORT BREAK")
+                                .font(.system(size: 12, weight: .bold, design: .rounded))
+                                .tracking(2.5)
+                                .foregroundColor(viewModel.theme.shortRound)
+                        }
                     }
+
+                    // Gentle breathing mindfulness guide
+                    Text(viewModel.breathGuide)
+                        .font(.system(size: 14, weight: .medium, design: .rounded))
+                        .foregroundColor(viewModel.theme.foregroundDarker)
+                        .transition(.opacity)
                 }
 
-                // Mindful Break Tips Carousel
+                Spacer()
+
+                // Mindful Activity Cards
                 HStack(spacing: 16) {
-                    TipCard(icon: "figure.walk", title: "Stand Up & Stretch", subtitle: "Release physical tension from back & neck")
-                    TipCard(icon: "drop.fill", title: "Hydrate", subtitle: "Drink a tall glass of cool fresh water")
-                    TipCard(icon: "eye", title: "Rest Your Eyes", subtitle: "Look at an object 20 feet away for 20 seconds")
+                    TipCard(
+                        icon: "figure.walk",
+                        title: "Stand Up & Stretch",
+                        subtitle: "Release physical tension from back & neck",
+                        theme: viewModel.theme
+                    )
+                    TipCard(
+                        icon: "drop.fill",
+                        title: "Hydrate",
+                        subtitle: "Drink a tall glass of cool fresh water",
+                        theme: viewModel.theme
+                    )
+                    TipCard(
+                        icon: "eye",
+                        title: "Rest Your Eyes",
+                        subtitle: "Look at an object 20 feet away for 20 seconds",
+                        theme: viewModel.theme
+                    )
                 }
                 .padding(.horizontal, 48)
 
@@ -469,26 +570,26 @@ struct BreakLockView: View {
                 HStack {
                     HStack(spacing: 6) {
                         Image(systemName: "flame.fill")
-                            .foregroundColor(.orange)
+                            .foregroundColor(viewModel.theme.focusRound)
                         Text("Cycle: Round \(viewModel.state.currentRound) of \(viewModel.state.totalRounds)")
                             .font(.system(size: 13, weight: .medium, design: .rounded))
-                            .foregroundColor(.white.opacity(0.85))
+                            .foregroundColor(viewModel.theme.foregroundDarker)
                     }
 
                     Spacer()
 
-                    Text("Press ESC to exit preview")
+                    Text("Press ESC to exit")
                         .font(.system(size: 11, weight: .medium, design: .rounded))
-                        .foregroundColor(.white.opacity(0.4))
+                        .foregroundColor(viewModel.theme.foregroundDarker.opacity(0.6))
 
                     Spacer()
 
                     HStack(spacing: 6) {
                         Image(systemName: "lock.open.fill")
-                            .foregroundColor(Color(red: 45/255.0, green: 212/255.0, blue: 191/255.0))
+                            .foregroundColor(viewModel.theme.shortRound)
                         Text("Auto-unlocks at \(expectedUnlockTimeStr)")
                             .font(.system(size: 13, weight: .semibold, design: .rounded))
-                            .foregroundColor(.white.opacity(0.85))
+                            .foregroundColor(viewModel.theme.foreground)
                     }
                 }
                 .padding(.horizontal, 48)
@@ -502,37 +603,37 @@ struct TipCard: View {
     let icon: String
     let title: String
     let subtitle: String
+    let theme: ThemeColors
 
     var body: some View {
         HStack(spacing: 14) {
             Image(systemName: icon)
-                .font(.system(size: 20))
-                .foregroundColor(Color(red: 45/255.0, green: 212/255.0, blue: 191/255.0))
-                .frame(width: 36, height: 36)
-                .background(Circle().fill(Color.white.opacity(0.06)))
+                .font(.system(size: 18))
+                .foregroundColor(theme.accent)
+                .frame(width: 34, height: 34)
+                .background(Circle().fill(theme.backgroundLight))
 
             VStack(alignment: .leading, spacing: 2) {
                 Text(title)
-                    .font(.system(size: 13, weight: .semibold, design: .rounded))
-                    .foregroundColor(.white.opacity(0.9))
+                    .font(.system(size: 12, weight: .semibold, design: .rounded))
+                    .foregroundColor(theme.foreground)
                 Text(subtitle)
                     .font(.system(size: 11, weight: .regular))
-                    .foregroundColor(.white.opacity(0.55))
+                    .foregroundColor(theme.foregroundDarker)
             }
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 12)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(
-            RoundedRectangle(cornerRadius: 12)
-                .fill(Color.white.opacity(0.04))
-                .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.white.opacity(0.08), lineWidth: 1))
+            RoundedRectangle(cornerRadius: 10)
+                .fill(theme.backgroundLight.opacity(0.6))
         )
     }
 }
 
 // ============================================================================
-// NSApplication Delegate & Hardware Shield Windows
+// NSApplication Delegate & Window Setup
 // ============================================================================
 
 class AppDelegate: NSObject, NSApplicationDelegate {
@@ -540,11 +641,14 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     var viewModel: BreakLockViewModel?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
-        print("DEBUG: applicationDidFinishLaunching, args=\(CommandLine.arguments)")
         let isPreview = CommandLine.arguments.contains("--preview") || CommandLine.arguments.contains("-p")
 
         let initial: PomotroidTimerState
+        let theme: ThemeColors
+
         if isPreview {
+            let (_, t) = fetchPomotroidStateAndTheme()
+            theme = t
             initial = PomotroidTimerState(
                 isRunning: true,
                 roundType: "short-break",
@@ -557,13 +661,15 @@ class AppDelegate: NSObject, NSApplicationDelegate {
                 todayFocusMins: 75
             )
         } else {
-            initial = fetchPomotroidState()
+            let (s, t) = fetchPomotroidStateAndTheme()
+            theme = t
+            initial = s
             if !initial.isRunning || initial.roundType != "short-break" || initial.remainingSecs <= 1 {
                 exit(0)
             }
         }
 
-        let vm = BreakLockViewModel(initialState: initial, isPreview: isPreview)
+        let vm = BreakLockViewModel(initialState: initial, theme: theme, isPreview: isPreview)
         self.viewModel = vm
 
         // Allow Escape key to dismiss cleanly
@@ -585,7 +691,6 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             ]
         }
 
-        // Create full-screen window for EVERY connected monitor
         for screen in NSScreen.screens {
             let window = NSWindow(
                 contentRect: screen.frame,
@@ -596,7 +701,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             )
 
             window.level = NSWindow.Level(rawValue: Int(CGShieldingWindowLevel()))
-            window.backgroundColor = NSColor(calibratedRed: 7/255.0, green: 10/255.0, blue: 18/255.0, alpha: 1.0)
+            window.backgroundColor = theme.background.nsColor
             window.isOpaque = true
             window.hasShadow = false
             window.ignoresMouseEvents = false
