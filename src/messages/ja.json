@@ -65,6 +65,8 @@
   "system_toggle_min_tray_desc": "最小化時にウィンドウをトレイに隠します。",
   "system_toggle_close_tray": "トレイに閉じる",
   "system_toggle_close_tray_desc": "ウィンドウを閉じるときに終了せずにトレイに隠します。",
+  "system_toggle_hide_dock": "Dockアイコンを非表示",
+  "system_toggle_hide_dock_desc": "Dockに表示せず、メニューバーのみでPomotroidを実行します。",
   "system_group_integrations": "統合",
   "system_toggle_websocket": "WebSocketサーバー",
   "system_toggle_websocket_desc": "外部連携用のローカルWebSocketエンドポイントを公開します（ポート {port}）。",

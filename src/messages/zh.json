@@ -65,6 +65,8 @@
   "system_toggle_min_tray_desc": "最小化时将窗口隐藏到托盘。",
   "system_toggle_close_tray": "关闭到托盘",
   "system_toggle_close_tray_desc": "关闭窗口时隐藏到托盘而不退出。",
+  "system_toggle_hide_dock": "隐藏程序坞图标",
+  "system_toggle_hide_dock_desc": "仅在菜单栏中运行 Pomotroid，不显示在程序坞中。",
   "system_group_integrations": "集成",
   "system_toggle_websocket": "WebSocket 服务器",
   "system_toggle_websocket_desc": "为外部集成公开本地 WebSocket 端点（端口 {port}）。",

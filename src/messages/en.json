@@ -65,6 +65,8 @@
   "system_toggle_min_tray_desc": "Hide the window to the tray when minimized.",
   "system_toggle_close_tray": "Close to Tray",
   "system_toggle_close_tray_desc": "Hide to the tray instead of quitting when the window is closed.",
+  "system_toggle_hide_dock": "Hide Dock Icon",
+  "system_toggle_hide_dock_desc": "Keep Pomotroid running exclusively in the menu bar without appearing in the Dock.",
   "system_group_integrations": "Integrations",
   "system_toggle_websocket": "WebSocket Server",
   "system_toggle_websocket_desc": "Expose a local WebSocket endpoint for external integrations (port {port}).",

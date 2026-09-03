@@ -217,6 +217,15 @@
         checked={$settings.min_to_tray_on_close}
         onclick={() => toggle('min_to_tray_on_close', $settings.min_to_tray_on_close)}
       />
+
+      {#if isMac}
+        <SettingsToggle
+          label={m.system_toggle_hide_dock()}
+          description={m.system_toggle_hide_dock_desc()}
+          checked={$settings.hide_dock_icon}
+          onclick={() => toggle('hide_dock_icon', $settings.hide_dock_icon)}
+        />
+      {/if}
     {/if}
   {/if}
 

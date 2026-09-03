@@ -65,6 +65,8 @@
   "system_toggle_min_tray_desc": "Fenster beim Minimieren in die Ablage ausblenden.",
   "system_toggle_close_tray": "In Ablage schließen",
   "system_toggle_close_tray_desc": "In die Ablage ausblenden statt beim Schließen zu beenden.",
+  "system_toggle_hide_dock": "Dock-Symbol ausblenden",
+  "system_toggle_hide_dock_desc": "Pomotroid ausschließlich in der Menüleiste ausführen, ohne im Dock zu erscheinen.",
   "system_group_integrations": "Integrationen",
   "system_toggle_websocket": "WebSocket-Server",
   "system_toggle_websocket_desc": "Einen lokalen WebSocket-Endpunkt für externe Integrationen bereitstellen (Port {port}).",

@@ -19,6 +19,7 @@ pub struct Settings {
     pub tray_icon_enabled: bool,
     pub min_to_tray: bool,
     pub min_to_tray_on_close: bool,
+    pub hide_dock_icon: bool,
     pub notifications_enabled: bool,
     /// Number of work rounds before a long break.
     pub long_break_interval: u32,
@@ -83,6 +84,7 @@ impl Default for Settings {
             tray_icon_enabled: false,
             min_to_tray: false,
             min_to_tray_on_close: false,
+            hide_dock_icon: false,
             notifications_enabled: false,
             long_break_interval: 4,
             short_breaks_enabled: true,
@@ -198,6 +200,7 @@ pub fn load(conn: &Connection) -> Result<Settings> {
         tray_icon_enabled: parse_bool(&map, "tray_icon_enabled", d.tray_icon_enabled),
         min_to_tray: parse_bool(&map, "min_to_tray", d.min_to_tray),
         min_to_tray_on_close: parse_bool(&map, "min_to_tray_on_close", d.min_to_tray_on_close),
+        hide_dock_icon: parse_bool(&map, "hide_dock_icon", d.hide_dock_icon),
         notifications_enabled: parse_bool(&map, "notifications", d.notifications_enabled),
         long_break_interval: parse_u32(&map, "work_rounds", d.long_break_interval),
         short_breaks_enabled: parse_bool(&map, "short_breaks_enabled", d.short_breaks_enabled),

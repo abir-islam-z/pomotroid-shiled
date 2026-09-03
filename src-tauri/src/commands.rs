@@ -218,6 +218,20 @@ pub fn settings_set(
         timer.system_bridge.on_settings_changed(&new_settings);
     }
 
+    if key == "hide_dock_icon" {
+        if new_settings.hide_dock_icon {
+            crate::window::set_dock_visible(&app, false);
+        } else {
+            let is_visible = app
+                .get_webview_window("main")
+                .and_then(|w| w.is_visible().ok())
+                .unwrap_or(false);
+            if is_visible {
+                crate::window::set_dock_visible(&app, true);
+            }
+        }
+    }
+
     app.emit("settings:changed", &new_settings).ok();
     Ok(new_settings)
 }
@@ -299,6 +313,13 @@ pub fn settings_reset_defaults(
         *tray_state.colors.lock().unwrap() = tray::TrayColors::from_colors_map(&theme.colors);
     }
     shortcuts::register_all(&app, &new_settings);
+    let is_visible = app
+        .get_webview_window("main")
+        .and_then(|w| w.is_visible().ok())
+        .unwrap_or(false);
+    if is_visible {
+        crate::window::set_dock_visible(&app, true);
+    }
     app.emit("settings:changed", &new_settings).ok();
     Ok(new_settings)
 }
@@ -390,14 +411,10 @@ pub fn stats_get_heatmap(db: State<'_, DbState>) -> Result<HeatmapStats, String>
 #[tauri::command]
 pub fn window_set_visibility(visible: bool, app: AppHandle) -> Result<(), String> {
     log::debug!("[window] set visibility={visible}");
-    let window = app
-        .get_webview_window("main")
-        .ok_or_else(|| "main window not found".to_string())?;
     if visible {
-        window.show().map_err(|e| e.to_string())?;
-        window.set_focus().map_err(|e| e.to_string())?;
+        crate::window::show_main_window(&app);
     } else {
-        window.hide().map_err(|e| e.to_string())?;
+        crate::window::hide_main_window(&app);
     }
     Ok(())
 }

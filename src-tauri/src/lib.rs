@@ -9,6 +9,7 @@ pub mod timer;
 pub mod tray;
 pub mod websocket;
 pub mod system_bridge;
+pub mod window;
 
 use std::sync::Arc;
 
@@ -109,6 +110,14 @@ pub fn run() {
                 log::info!("Verbose logging enabled — log level set to DEBUG");
             } else {
                 log::set_max_level(LevelFilter::Info);
+            }
+
+            // Sync macOS dock visibility from saved settings.
+            if initial_settings.hide_dock_icon {
+                window::set_dock_visible(app.handle(), false);
+            } else {
+                #[cfg(target_os = "macos")]
+                window::ensure_dock_icon();
             }
 
             // Sync tray state from saved settings.
@@ -324,7 +333,6 @@ pub fn run() {
             // Persist window position/size on move and resize, and close child windows
             // when the main window is truly closed (not hidden to tray).
             let db_for_close = db.clone();
-            let win_for_close = main_window.clone();
             let app_for_close = app.handle().clone();
             let db_for_pos = db.clone();
             let win_for_pos = main_window.clone();
@@ -339,7 +347,7 @@ pub fn run() {
                             .unwrap_or(false);
                         if hide {
                             api.prevent_close();
-                            let _ = win_for_close.hide();
+                            window::hide_main_window(&app_for_close);
                         } else {
                             // Clean up system bridge (unblock /etc/hosts & close break lock)
                             if let Some(sb) = app_for_close.try_state::<Arc<system_bridge::SystemBridge>>() {
@@ -424,11 +432,19 @@ pub fn run() {
         ])
         .build(tauri::generate_context!())
         .expect("error while building tauri application")
-        .run(|_app_handle, event| {
-            if let tauri::RunEvent::ExitRequested { .. } | tauri::RunEvent::Exit = event {
-                log::info!("[lifecycle] application exiting — cleaning up system hosts blocks");
-                let _ = system_bridge::hosts::clean_all();
-                system_bridge::break_lock::close_break_lock();
+        .run(|app_handle, event| {
+            match event {
+                #[cfg(target_os = "macos")]
+                tauri::RunEvent::Reopen { .. } => {
+                    log::info!("[lifecycle] application reopened — restoring main window");
+                    window::show_main_window(app_handle);
+                }
+                tauri::RunEvent::ExitRequested { .. } | tauri::RunEvent::Exit => {
+                    log::info!("[lifecycle] application exiting — cleaning up system hosts blocks");
+                    let _ = system_bridge::hosts::clean_all();
+                    system_bridge::break_lock::close_break_lock();
+                }
+                _ => {}
             }
         });
 }
