@@ -4,8 +4,6 @@
   import { isMac } from '$lib/utils/platform';
   import { setWindowVisibility } from '$lib/ipc';
   import { settings } from '$lib/stores/settings';
-  import * as m from '$paraglide/messages.js';
-  import Tooltip from './Tooltip.svelte';
 
   let {
     currentView = 'timer',
@@ -73,119 +71,59 @@
 </script>
 
 <nav class="titlebar" class:macos={isMac} class:suppress-hover={suppressTitlebarHover} data-tauri-drag-region>
-  <!-- Left section -->
-  <div class="titlebar-left">
-    {#if currentView !== 'timer'}
-      <!-- Native Apple back button -->
-      <button
-        class="nav-back-btn"
-        onclick={() => onnavigate('timer')}
-        aria-label="Back to Timer"
-      >
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-          <polyline points="15 18 9 12 15 6"/>
-        </svg>
-        <span>Timer</span>
-      </button>
-    {/if}
+  <!-- Center: Modern macOS Segmented View Controller -->
+  <div class="nav-segmented" data-tauri-drag-region="false">
+    <button
+      class="nav-tab"
+      class:active={currentView === 'timer'}
+      onclick={() => onnavigate('timer')}
+      aria-label="Timer View"
+    >
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="12" cy="12" r="10"/>
+        <polyline points="12 6 12 12 16 14"/>
+      </svg>
+      <span>Timer</span>
+    </button>
+
+    <button
+      class="nav-tab"
+      class:active={currentView === 'stats'}
+      onclick={() => onnavigate('stats')}
+      aria-label="Statistics View"
+    >
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round">
+        <line x1="18" y1="20" x2="18" y2="10"/>
+        <line x1="12" y1="20" x2="12" y2="4"/>
+        <line x1="6" y1="20" x2="6" y2="14"/>
+      </svg>
+      <span>Stats</span>
+    </button>
+
+    <button
+      class="nav-tab"
+      class:active={currentView === 'settings'}
+      onclick={() => onnavigate('settings')}
+      aria-label="Settings View"
+    >
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round">
+        <line x1="4" y1="21" x2="4" y2="14"/>
+        <line x1="4" y1="10" x2="4" y2="3"/>
+        <line x1="12" y1="21" x2="12" y2="12"/>
+        <line x1="12" y1="8" x2="12" y2="3"/>
+        <line x1="20" y1="21" x2="20" y2="16"/>
+        <line x1="20" y1="12" x2="20" y2="3"/>
+        <line x1="1" y1="14" x2="7" y2="14"/>
+        <line x1="9" y1="8" x2="15" y2="8"/>
+        <line x1="17" y1="16" x2="23" y2="16"/>
+      </svg>
+      <span>Settings</span>
+    </button>
   </div>
 
-  <!-- Center section: title when in subviews -->
-  <div class="titlebar-center">
-    {#if currentView === 'stats'}
-      <span class="view-title">Statistics</span>
-    {:else if currentView === 'settings'}
-      <span class="view-title">Settings</span>
-    {/if}
-  </div>
-
-  <!-- Right section: action icons or window controls -->
-  <div class="controls">
-    {#if currentView === 'timer'}
-      <Tooltip text={m.tooltip_statistics()}>
-        <button
-          class="btn-icon"
-          onclick={() => onnavigate('stats')}
-          aria-label="Statistics"
-        >
-          <!-- Activity / Chart icon -->
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <line x1="18" y1="20" x2="18" y2="10"/>
-            <line x1="12" y1="20" x2="12" y2="4"/>
-            <line x1="6" y1="20" x2="6" y2="14"/>
-          </svg>
-        </button>
-      </Tooltip>
-
-      <Tooltip text={m.tooltip_settings()}>
-        <button
-          class="btn-icon"
-          onclick={() => onnavigate('settings')}
-          aria-label="Settings"
-        >
-          <!-- Sliders icon -->
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <line x1="4" y1="21" x2="4" y2="14"/>
-            <line x1="4" y1="10" x2="4" y2="3"/>
-            <line x1="12" y1="21" x2="12" y2="12"/>
-            <line x1="12" y1="8" x2="12" y2="3"/>
-            <line x1="20" y1="21" x2="20" y2="16"/>
-            <line x1="20" y1="12" x2="20" y2="3"/>
-            <line x1="1" y1="14" x2="7" y2="14"/>
-            <line x1="9" y1="8" x2="15" y2="8"/>
-            <line x1="17" y1="16" x2="23" y2="16"/>
-          </svg>
-        </button>
-      </Tooltip>
-    {:else}
-      <!-- Quick switch buttons in subviews -->
-      {#if currentView === 'stats'}
-        <Tooltip text={m.tooltip_settings()}>
-          <button
-            class="btn-icon"
-            onclick={() => onnavigate('settings')}
-            aria-label="Settings"
-          >
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <line x1="4" y1="21" x2="4" y2="14"/>
-              <line x1="4" y1="10" x2="4" y2="3"/>
-              <line x1="12" y1="21" x2="12" y2="12"/>
-              <line x1="12" y1="8" x2="12" y2="3"/>
-              <line x1="20" y1="21" x2="20" y2="16"/>
-              <line x1="20" y1="12" x2="20" y2="3"/>
-              <line x1="1" y1="14" x2="7" y2="14"/>
-              <line x1="9" y1="8" x2="15" y2="8"/>
-              <line x1="17" y1="16" x2="23" y2="16"/>
-            </svg>
-          </button>
-        </Tooltip>
-      {:else}
-        <Tooltip text={m.tooltip_statistics()}>
-          <button
-            class="btn-icon"
-            onclick={() => onnavigate('stats')}
-            aria-label="Statistics"
-          >
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <line x1="18" y1="20" x2="18" y2="10"/>
-              <line x1="12" y1="20" x2="12" y2="4"/>
-              <line x1="6" y1="20" x2="6" y2="14"/>
-            </svg>
-          </button>
-        </Tooltip>
-      {/if}
-
-      <!-- Done button -->
-      <button
-        class="btn-done"
-        onclick={() => onnavigate('timer')}
-        aria-label="Done"
-      >
-        Done
-      </button>
-    {/if}
-
-    {#if !isMac}
+  <!-- Windows/Linux controls -->
+  {#if !isMac}
+    <div class="win-controls">
       <button class="btn-icon" onclick={minimize} aria-label="Minimize">
         <svg width="12" height="12" viewBox="0 0 12 12">
           <line x1="1" y1="6" x2="11" y2="6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
@@ -209,130 +147,94 @@
           <line x1="11" y1="1" x2="1" y2="11" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
         </svg>
       </button>
-    {/if}
-  </div>
+    </div>
+  {/if}
 </nav>
 
 <style>
   .titlebar {
-    height: 42px;
+    height: 44px;
     width: 100%;
     display: flex;
     align-items: center;
-    justify-content: space-between;
+    justify-content: center;
     padding: 0 12px;
     position: relative;
     flex-shrink: 0;
     border-bottom: 1px solid rgba(255, 255, 255, 0.05);
-    transition: border-color 0.2s ease;
+    background: rgba(255, 255, 255, 0.015);
   }
 
   .macos {
-    padding-left: 74px; /* Space for macOS traffic lights */
+    padding-left: 74px; /* Proper offset for macOS traffic lights */
   }
 
-  .titlebar-left {
-    display: flex;
+  /* Modern macOS Segmented Control */
+  .nav-segmented {
+    display: inline-flex;
     align-items: center;
-    min-width: 80px;
-  }
-
-  .titlebar-center {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    flex: 1;
-    pointer-events: none;
-  }
-
-  .view-title {
-    font-size: 0.82rem;
-    font-weight: 500;
-    letter-spacing: -0.01em;
-    color: rgba(255, 255, 255, 0.75);
-  }
-
-  .nav-back-btn {
-    display: flex;
-    align-items: center;
-    gap: 4px;
-    padding: 4px 9px 4px 6px;
-    background: rgba(255, 255, 255, 0.06);
+    background: rgba(0, 0, 0, 0.28);
     border: 1px solid rgba(255, 255, 255, 0.08);
-    border-radius: 6px;
-    color: rgba(255, 255, 255, 0.75);
-    font-size: 0.78rem;
-    font-weight: 500;
-    cursor: pointer;
-    transition: all 0.15s ease;
+    border-radius: 8px;
+    padding: 2.5px;
+    gap: 2px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
   }
 
-  .nav-back-btn:hover {
-    background: rgba(255, 255, 255, 0.12);
-    color: #ffffff;
-  }
-
-  .controls {
+  .nav-tab {
     display: flex;
     align-items: center;
+    gap: 6px;
+    padding: 4px 12px;
+    background: transparent;
+    border: none;
+    border-radius: 6px;
+    font-size: 0.77rem;
+    font-weight: 450;
+    color: rgba(255, 255, 255, 0.62);
+    cursor: pointer;
+    transition: all 0.16s cubic-bezier(0.16, 1, 0.3, 1);
+    white-space: nowrap;
+  }
+
+  .nav-tab:hover {
+    color: rgba(255, 255, 255, 0.95);
+    background: rgba(255, 255, 255, 0.05);
+  }
+
+  .nav-tab.active {
+    background: rgba(255, 255, 255, 0.14);
+    color: #ffffff;
+    font-weight: 500;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.35);
+  }
+
+  .win-controls {
+    display: flex;
     gap: 6px;
     margin-left: auto;
   }
 
-  .btn-done {
-    padding: 4px 10px;
-    font-size: 0.76rem;
-    font-weight: 500;
-    background: rgba(255, 255, 255, 0.12);
-    border: 1px solid rgba(255, 255, 255, 0.12);
-    border-radius: 6px;
-    color: #ffffff;
-    cursor: pointer;
-    transition: all 0.15s ease;
-  }
-
-  .btn-done:hover {
-    background: rgba(255, 255, 255, 0.2);
-  }
-
   .btn-icon {
     background: rgba(255, 255, 255, 0.05);
-    backdrop-filter: blur(12px);
-    -webkit-backdrop-filter: blur(12px);
     border: 1px solid rgba(255, 255, 255, 0.08);
     cursor: pointer;
     color: var(--color-foreground-darker);
     display: flex;
     align-items: center;
     justify-content: center;
-    width: 28px;
-    height: 28px;
-    border-radius: 7px;
-    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.12);
-    transition: all 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+    width: 26px;
+    height: 26px;
+    border-radius: 6px;
+    transition: all 0.15s;
   }
 
-  .btn-icon:focus {
-    outline: none;
-  }
-
-  .btn-icon:focus-visible {
-    outline: 2px solid rgba(255, 255, 255, 0.3);
-    outline-offset: 1px;
-  }
-
-  .titlebar:not(.suppress-hover) .btn-icon:hover {
-    color: var(--color-foreground);
+  .btn-icon:hover {
+    color: #ffffff;
     background: rgba(255, 255, 255, 0.12);
-    border-color: rgba(255, 255, 255, 0.2);
-    transform: scale(1.05);
   }
 
-  .btn-icon:active {
-    transform: scale(0.94);
-  }
-
-  .titlebar:not(.suppress-hover) .btn-icon.close:hover {
+  .btn-icon.close:hover {
     color: #ffffff;
     background: #FF453A;
     border-color: #FF453A;
