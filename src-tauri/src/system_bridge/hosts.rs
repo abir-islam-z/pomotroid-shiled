@@ -15,25 +15,8 @@ pub const FOCUS_END: &str = "# === POMOTROID FOCUS BLOCK END ===";
 pub const ADULT_START: &str = "# === POMOTROID 24/7 ADULT SHIELD START ===";
 pub const ADULT_END: &str = "# === POMOTROID 24/7 ADULT SHIELD END ===";
 
-pub const DEFAULT_ADULT_DOMAINS: &[&str] = &[
-    "pornhub.com", "xvideos.com", "xnxx.com", "xhamster.com",
-    "redtube.com", "youporn.com", "chaturbate.com", "onlyfans.com",
-    "stripchat.com", "livejasmin.com", "cam4.com", "bongacams.com",
-    "eporner.com", "spankbang.com", "tube8.com", "beeg.com",
-    "hqporner.com", "tnaflix.com", "motherless.com", "heavy-r.com",
-    "faphouse.com", "brazzers.com", "bangbros.com", "naughtyamerica.com",
-    "realitykings.com", "porn.com", "rule34.xxx", "e-hentai.org",
-    "gelbooru.com", "danbooru.donmai.us", "nhentai.net", "hanime.tv",
-    "luscious.net", "erome.com", "coomer.party", "kemono.party",
-    "coomer.su", "kemono.su", "fansly.com", "manyvids.com",
-    "camsoda.com", "myfreecams.com", "flirt4free.com", "fapello.com",
-    "fapcat.com", "hitomi.la", "pururin.io", "hentaihaven.xxx",
-    "e621.net", "simpcity.su", "thothub.to", "missav.com",
-    "jable.tv", "txxx.com", "drtuber.com", "porntrex.com",
-    "thumbzilla.com", "empflix.com", "hentai2read.com", "multporn.net",
-    "javlibrary.com", "javhd.com", "javbus.com", "7mmtv.tv",
-    "badjojo.com", "sex.com", "xxx.com"
-];
+// Adult content is strictly classified implicitly (no hardcoded domain list)
+pub const DEFAULT_ADULT_DOMAINS: &[&str] = &[];
 
 pub fn is_hosts_writable() -> bool {
     let metadata = match fs::metadata(HOSTS_PATH) {
@@ -169,7 +152,7 @@ pub fn update_hosts(
     focus_blocked: bool,
     focus_domains: &[String],
     adult_blocked: bool,
-    explicit_adult_domains: &[String],
+    _explicit_adult_domains: &[String],
 ) -> Result<(), String> {
     let existing = fs::read_to_string(HOSTS_PATH).map_err(|e| e.to_string())?;
 
@@ -200,25 +183,8 @@ pub fn update_hosts(
         ));
     }
 
-    if adult_blocked {
-        let mut adult_set = std::collections::HashSet::new();
-        for d in explicit_adult_domains {
-            let clean = d.trim().to_lowercase();
-            if !clean.is_empty() {
-                adult_set.insert(clean);
-            }
-        }
-        for d in DEFAULT_ADULT_DOMAINS {
-            adult_set.insert(d.trim().to_lowercase());
-        }
-        let adult_strings: Vec<String> = adult_set.into_iter().collect();
-        content.push_str(&build_section(
-            ADULT_START,
-            ADULT_END,
-            "24/7 ADULT CONTENT SHIELD",
-            &adult_strings,
-        ));
-    }
+    // Adult blocking is handled 100% implicitly via real-time browser inspection & MetaScanner.
+    // Zero domain lists are written to /etc/hosts.
 
     content.push('\n');
 

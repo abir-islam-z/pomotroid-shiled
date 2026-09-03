@@ -92,15 +92,34 @@ impl SystemBridge {
         s.adult_domains = Self::parse_domains(&settings.system_adult_domains);
     }
 
-    /// Called on app startup to engage baseline protections (e.g. 24/7 Adult Shield)
+    /// Called on app startup to engage baseline protections
     pub fn init(&self, settings: &Settings) {
-        log::info!("[system_bridge] init: loading baseline protections (adult_shield={})", settings.system_adult_shield_enabled);
+        log::info!("[system_bridge] init: loading baseline protections");
         self.sync_settings(settings);
         self.is_work_active.store(false, Ordering::Relaxed);
         let adult_domains = Self::parse_domains(&settings.system_adult_domains);
         let adult_shield = settings.system_adult_shield_enabled;
         thread::spawn(move || {
             let _ = hosts::update_hosts(false, &[], adult_shield, &adult_domains);
+        });
+    }
+
+    /// Called whenever any shield or block setting changes in the UI
+    pub fn on_settings_changed(&self, settings: &Settings) {
+        log::info!(
+            "[system_bridge] settings changed: block_enabled={}, adult_enabled={}",
+            settings.system_block_enabled,
+            settings.system_adult_shield_enabled
+        );
+        self.sync_settings(settings);
+        let is_work = self.is_work_active.load(Ordering::Relaxed);
+        let should_block_focus = settings.system_block_enabled && is_work;
+        let domains = Self::parse_domains(&settings.system_blocked_domains);
+        let adult_domains = Self::parse_domains(&settings.system_adult_domains);
+        let adult_enabled = settings.system_adult_shield_enabled;
+
+        thread::spawn(move || {
+            let _ = hosts::update_hosts(should_block_focus, &domains, adult_enabled, &adult_domains);
         });
     }
 
