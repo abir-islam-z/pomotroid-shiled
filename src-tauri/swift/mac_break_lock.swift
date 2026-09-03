@@ -445,9 +445,22 @@ struct BreakLockView: View {
 
     var body: some View {
         ZStack {
-            // Native Theme Background
-            viewModel.theme.background
+            // Deep obsidian night background
+            Color(red: 7/255.0, green: 10/255.0, blue: 18/255.0)
                 .ignoresSafeArea()
+
+            // Soft ambient glow tinted with theme break colors
+            RadialGradient(
+                gradient: Gradient(colors: [
+                    viewModel.theme.shortRound.opacity(0.11),
+                    viewModel.theme.accent.opacity(0.05),
+                    Color.clear
+                ]),
+                center: .center,
+                startRadius: 80,
+                endRadius: 550
+            )
+            .ignoresSafeArea()
 
             VStack(spacing: 32) {
                 // Header Bar
@@ -701,7 +714,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             )
 
             window.level = NSWindow.Level(rawValue: Int(CGShieldingWindowLevel()))
-            window.backgroundColor = theme.background.nsColor
+            window.backgroundColor = NSColor(calibratedRed: 7/255.0, green: 10/255.0, blue: 18/255.0, alpha: 1.0)
             window.isOpaque = true
             window.hasShadow = false
             window.ignoresMouseEvents = false
