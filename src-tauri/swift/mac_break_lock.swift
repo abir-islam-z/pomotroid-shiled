@@ -1,14 +1,15 @@
 //
 //  mac_break_lock.swift
-//  Native macOS Hardware Break Screen Lock for Pomotroid Shield
+//  Strict Native macOS Hardware Break Screen Lock for Pomotroid Shield
 //
 //  Features:
 //  - Fully synchronized with Pomotroid active theme (background, dials, text, accent)
 //  - Multi-monitor hardware shielding at CGShieldingWindowLevel
+//  - Strict lockdown: blocks ESC, Cmd+Tab, Dock, Menu Bar, Mission Control, and Force Quit
 //  - High-precision local countdown timer with dynamic unlock wall-clock calculation
 //  - Breathing mindfulness prompts with fluid scale animations
-//  - Safety ESC key handler (keycode 53)
-//  - Instant preview mode (--preview)
+//  - Re-activates automatically if focus attempts to shift
+//  - Preview mode (--preview) supports ESC dismissal
 //
 
 import Cocoa
@@ -202,6 +203,9 @@ class BreakLockViewModel: ObservableObject {
                 return
             }
 
+            // Enforce foreground restriction during real lock
+            NSApp.activate(ignoringOtherApps: true)
+
             if rem <= 0 {
                 NSApp.terminate(nil)
             }
@@ -386,9 +390,19 @@ struct BreakLockView: View {
 
                     Spacer()
 
-                    Text("Press ESC to exit")
-                        .font(.system(size: 12, weight: .medium, design: .rounded))
-                        .foregroundColor(viewModel.theme.foregroundDarker.opacity(0.6))
+                    if viewModel.isPreview {
+                        Text("Preview Mode — Press ESC to exit")
+                            .font(.system(size: 12, weight: .medium, design: .rounded))
+                            .foregroundColor(viewModel.theme.foregroundDarker.opacity(0.6))
+                    } else {
+                        HStack(spacing: 6) {
+                            Image(systemName: "lock.shield.fill")
+                                .foregroundColor(viewModel.theme.shortRound)
+                            Text("Strict Focus Lockdown Active")
+                                .font(.system(size: 13, weight: .semibold, design: .rounded))
+                                .foregroundColor(viewModel.theme.foregroundDarker)
+                        }
+                    }
 
                     Spacer()
 
@@ -480,13 +494,22 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         let vm = BreakLockViewModel(initialState: initial, theme: theme, isPreview: isPreview)
         self.viewModel = vm
 
-        // Allow Escape key to dismiss cleanly
-        NSEvent.addLocalMonitorForEvents(matching: .keyDown) { event in
-            if event.keyCode == 53 { // ESC key
-                NSApp.terminate(nil)
+        // Key interception policy
+        if isPreview {
+            // Allow Escape key to dismiss preview
+            NSEvent.addLocalMonitorForEvents(matching: .keyDown) { event in
+                if event.keyCode == 53 { // ESC key
+                    NSApp.terminate(nil)
+                    return nil
+                }
+                return event
+            }
+        } else {
+            // In real break mode: STRICT LOCKDOWN!
+            // Intercept and swallow all key events (ESC, Cmd+Q, Cmd+W, etc.)
+            NSEvent.addLocalMonitorForEvents(matching: .keyDown) { _ in
                 return nil
             }
-            return event
         }
 
         if !isPreview {
@@ -494,7 +517,9 @@ class AppDelegate: NSObject, NSApplicationDelegate {
                 .hideDock,
                 .hideMenuBar,
                 .disableProcessSwitching,
-                .disableSessionTermination
+                .disableForceQuit,
+                .disableSessionTermination,
+                .disableAppleMenu
             ]
         }
 
@@ -512,7 +537,8 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             window.isOpaque = true
             window.hasShadow = false
             window.ignoresMouseEvents = false
-            window.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]
+            window.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary, .stationary]
+            window.hidesOnDeactivate = false
 
             let hostingView = NSHostingView(rootView: BreakLockView(viewModel: vm))
             hostingView.frame = window.contentView!.bounds
@@ -524,6 +550,15 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         }
 
         NSApp.activate(ignoringOtherApps: true)
+    }
+
+    func applicationDidResignActive(_ notification: Notification) {
+        if let vm = viewModel, !vm.isPreview {
+            NSApp.activate(ignoringOtherApps: true)
+            for w in windows {
+                w.makeKeyAndOrderFront(nil)
+            }
+        }
     }
 }
 
