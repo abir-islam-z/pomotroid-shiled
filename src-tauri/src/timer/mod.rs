@@ -438,19 +438,15 @@ fn listen_events(
                     websocket::broadcast_paused(&ws, elapsed_secs);
                 }
 
-                let rt = sequence.lock().unwrap().current_round;
-                let s = settings.lock().unwrap();
-                if rt == RoundType::Work {
-                    system_bridge.on_work_paused(&s);
+                let rt_enum = sequence.lock().unwrap().current_round;
+                let s_clone = settings.lock().unwrap().clone();
+                if rt_enum == RoundType::Work {
+                    system_bridge.on_work_paused(&s_clone);
                 }
 
                 // Show pause bars in tray.
-                let rt = sequence.lock().unwrap().current_round.as_str().to_string();
-                let total = {
-                    let seq = sequence.lock().unwrap();
-                    let s = settings.lock().unwrap();
-                    seq.current_duration_secs(&s)
-                };
+                let rt = rt_enum.as_str().to_string();
+                let total = sequence.lock().unwrap().current_duration_secs(&s_clone);
                 let progress = if total > 0 { elapsed_secs as f32 / total as f32 } else { 0.0 };
                 tray::update_icon(&tray, &rt, true, progress);
                 tray::update_menu_items(&tray, false, true);
@@ -464,19 +460,15 @@ fn listen_events(
                     websocket::broadcast_resumed(&ws, elapsed_secs);
                 }
 
-                let rt = sequence.lock().unwrap().current_round;
-                let s = settings.lock().unwrap();
-                if rt == RoundType::Work {
-                    system_bridge.on_work_active(&s);
+                let rt_enum = sequence.lock().unwrap().current_round;
+                let s_clone = settings.lock().unwrap().clone();
+                if rt_enum == RoundType::Work {
+                    system_bridge.on_work_active(&s_clone);
                 }
 
                 // Restore arc in tray.
-                let rt = sequence.lock().unwrap().current_round.as_str().to_string();
-                let total = {
-                    let seq = sequence.lock().unwrap();
-                    let s = settings.lock().unwrap();
-                    seq.current_duration_secs(&s)
-                };
+                let rt = rt_enum.as_str().to_string();
+                let total = sequence.lock().unwrap().current_duration_secs(&s_clone);
                 let progress = if total > 0 { elapsed_secs as f32 / total as f32 } else { 0.0 };
                 tray::update_icon(&tray, &rt, false, progress);
                 last_tray_progress = progress;
@@ -499,19 +491,15 @@ fn listen_events(
                     websocket::broadcast_reset(&ws);
                 }
 
-                let s = settings.lock().unwrap();
-                system_bridge.on_timer_idle(&s);
+                let s_clone = settings.lock().unwrap().clone();
+                system_bridge.on_timer_idle(&s_clone);
 
                 // Prime the engine with the current round's duration so the
                 // next Start uses the correct (possibly settings-updated)
                 // total. Using the lighter-weight command here avoids a race
                 // where a fast user click on Start is immediately clobbered by
                 // a late follow-up duration update.
-                let duration = {
-                    let seq = sequence.lock().unwrap();
-                    let s = settings.lock().unwrap();
-                    seq.current_duration_secs(&s)
-                };
+                let duration = sequence.lock().unwrap().current_duration_secs(&s_clone);
                 engine.send(TimerCommand::Prime { duration_secs: duration });
 
                 // Reset tray to idle (empty arc).
