@@ -849,3 +849,12 @@ mod tests {
     }
 }
 
+
+#[tauri::command]
+pub fn resize_main_window(app: AppHandle, width: u32, height: u32) -> Result<(), String> {
+    use tauri::Manager;
+    if let Some(window) = app.get_webview_window("main") {
+        let _ = window.set_size(tauri::LogicalSize::new(width, height));
+    }
+    Ok(())
+}

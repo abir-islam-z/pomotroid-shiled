@@ -78,7 +78,7 @@
 
     <div class="chart-wrap">
       <svg
-        width={CHART_W}
+        width="100%"
         height={CHART_H + 26}
         viewBox="0 0 {CHART_W} {CHART_H + 26}"
         class="chart"

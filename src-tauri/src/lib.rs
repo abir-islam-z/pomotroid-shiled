@@ -25,6 +25,7 @@ use commands::{
     audio_clear_custom, audio_get_custom_info, audio_set_custom,
     get_log_dir, open_log_dir,
     system_bridge_get_status, system_bridge_test_break_lock, system_bridge_close_break_lock, system_bridge_pause_media, system_bridge_resume_media,
+    resize_main_window,
     notification_show,
     settings_get, settings_reset_defaults, settings_set,
     shortcuts_reload,
@@ -416,6 +417,7 @@ pub fn run() {
             system_bridge_close_break_lock,
             system_bridge_pause_media,
             system_bridge_resume_media,
+            resize_main_window,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

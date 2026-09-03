@@ -1,12 +1,19 @@
 <script lang="ts">
-  // Custom titlebar.
   import { onMount } from 'svelte';
-  import { getCurrentWebviewWindow, WebviewWindow } from '@tauri-apps/api/webviewWindow';
+  import { getCurrentWebviewWindow } from '@tauri-apps/api/webviewWindow';
   import { isMac } from '$lib/utils/platform';
   import { setWindowVisibility } from '$lib/ipc';
   import { settings } from '$lib/stores/settings';
   import * as m from '$paraglide/messages.js';
   import Tooltip from './Tooltip.svelte';
+
+  let {
+    currentView = 'timer',
+    onnavigate = () => {},
+  }: {
+    currentView?: 'timer' | 'stats' | 'settings';
+    onnavigate?: (view: 'timer' | 'stats' | 'settings') => void;
+  } = $props();
 
   let maximized = $state(false);
   let suppressTitlebarHover = $state(false);
@@ -46,54 +53,6 @@
     };
   });
 
-  async function openSettings() {
-    const existing = await WebviewWindow.getByLabel('settings');
-    if (existing) {
-      await existing.show();
-      await existing.setFocus();
-      return;
-    }
-    new WebviewWindow('settings', {
-      url: '/settings',
-      title: 'Pomotroid — Settings',
-      width: 720,
-      height: 520,
-      decorations: isMac,
-      transparent: isMac,
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      windowEffects: isMac ? { effects: ['hudWindow'], state: 'active', radius: 18 } as any : undefined,
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      titleBarStyle: isMac ? ('Overlay' as any) : undefined,
-      hiddenTitle: isMac ? true : undefined,
-      resizable: false,
-      visible: false,
-    });
-  }
-
-  async function openStats() {
-    const existing = await WebviewWindow.getByLabel('stats');
-    if (existing) {
-      await existing.show();
-      await existing.setFocus();
-      return;
-    }
-    new WebviewWindow('stats', {
-      url: '/stats',
-      title: 'Pomotroid — Statistics',
-      width: 840,
-      height: 520,
-      decorations: isMac,
-      transparent: isMac,
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      windowEffects: isMac ? { effects: ['hudWindow'], state: 'active', radius: 18 } as any : undefined,
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      titleBarStyle: isMac ? ('Overlay' as any) : undefined,
-      hiddenTitle: isMac ? true : undefined,
-      resizable: false,
-      visible: false,
-    });
-  }
-
   async function minimize() {
     suppressRestoredTitlebarState();
     if ($settings.min_to_tray) {
@@ -113,51 +72,120 @@
   }
 </script>
 
-{#snippet settingsBtn()}
-  <Tooltip text={m.tooltip_settings()}>
-    <button class="btn-icon" onclick={openSettings} aria-label="Settings">
-      <!-- Apple SF Symbols-inspired Sliders -->
-      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-        <line x1="4" y1="21" x2="4" y2="14"/>
-        <line x1="4" y1="10" x2="4" y2="3"/>
-        <line x1="12" y1="21" x2="12" y2="12"/>
-        <line x1="12" y1="8" x2="12" y2="3"/>
-        <line x1="20" y1="21" x2="20" y2="16"/>
-        <line x1="20" y1="12" x2="20" y2="3"/>
-        <line x1="1" y1="14" x2="7" y2="14"/>
-        <line x1="9" y1="8" x2="15" y2="8"/>
-        <line x1="17" y1="16" x2="23" y2="16"/>
-      </svg>
-    </button>
-  </Tooltip>
-{/snippet}
+<nav class="titlebar" class:macos={isMac} class:suppress-hover={suppressTitlebarHover} data-tauri-drag-region>
+  <!-- Left section -->
+  <div class="titlebar-left">
+    {#if currentView !== 'timer'}
+      <!-- Native Apple back button -->
+      <button
+        class="nav-back-btn"
+        onclick={() => onnavigate('timer')}
+        aria-label="Back to Timer"
+      >
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+          <polyline points="15 18 9 12 15 6"/>
+        </svg>
+        <span>Timer</span>
+      </button>
+    {/if}
+  </div>
 
-{#snippet statsBtn()}
-  <Tooltip text={m.tooltip_statistics()}>
-    <button class="btn-icon" onclick={openStats} aria-label="Statistics">
-      <!-- Apple SF Symbols-inspired Activity / Chart -->
-      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-        <line x1="18" y1="20" x2="18" y2="10"/>
-        <line x1="12" y1="20" x2="12" y2="4"/>
-        <line x1="6" y1="20" x2="6" y2="14"/>
-      </svg>
-    </button>
-  </Tooltip>
-{/snippet}
+  <!-- Center section: title when in subviews -->
+  <div class="titlebar-center">
+    {#if currentView === 'stats'}
+      <span class="view-title">Statistics</span>
+    {:else if currentView === 'settings'}
+      <span class="view-title">Settings</span>
+    {/if}
+  </div>
 
-<nav class="titlebar" class:suppress-hover={suppressTitlebarHover} data-tauri-drag-region>
-  <!-- Left: on Windows/Linux action buttons go left; on macOS native traffic lights live here -->
-  {#if !isMac}
-    {@render settingsBtn()}
-    {@render statsBtn()}
-  {/if}
-
-  <!-- Right: action buttons on macOS, window control buttons on Windows/Linux -->
+  <!-- Right section: action icons or window controls -->
   <div class="controls">
-    {#if isMac}
-      {@render statsBtn()}
-      {@render settingsBtn()}
+    {#if currentView === 'timer'}
+      <Tooltip text={m.tooltip_statistics()}>
+        <button
+          class="btn-icon"
+          onclick={() => onnavigate('stats')}
+          aria-label="Statistics"
+        >
+          <!-- Activity / Chart icon -->
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="18" y1="20" x2="18" y2="10"/>
+            <line x1="12" y1="20" x2="12" y2="4"/>
+            <line x1="6" y1="20" x2="6" y2="14"/>
+          </svg>
+        </button>
+      </Tooltip>
+
+      <Tooltip text={m.tooltip_settings()}>
+        <button
+          class="btn-icon"
+          onclick={() => onnavigate('settings')}
+          aria-label="Settings"
+        >
+          <!-- Sliders icon -->
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="4" y1="21" x2="4" y2="14"/>
+            <line x1="4" y1="10" x2="4" y2="3"/>
+            <line x1="12" y1="21" x2="12" y2="12"/>
+            <line x1="12" y1="8" x2="12" y2="3"/>
+            <line x1="20" y1="21" x2="20" y2="16"/>
+            <line x1="20" y1="12" x2="20" y2="3"/>
+            <line x1="1" y1="14" x2="7" y2="14"/>
+            <line x1="9" y1="8" x2="15" y2="8"/>
+            <line x1="17" y1="16" x2="23" y2="16"/>
+          </svg>
+        </button>
+      </Tooltip>
     {:else}
+      <!-- Quick switch buttons in subviews -->
+      {#if currentView === 'stats'}
+        <Tooltip text={m.tooltip_settings()}>
+          <button
+            class="btn-icon"
+            onclick={() => onnavigate('settings')}
+            aria-label="Settings"
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <line x1="4" y1="21" x2="4" y2="14"/>
+              <line x1="4" y1="10" x2="4" y2="3"/>
+              <line x1="12" y1="21" x2="12" y2="12"/>
+              <line x1="12" y1="8" x2="12" y2="3"/>
+              <line x1="20" y1="21" x2="20" y2="16"/>
+              <line x1="20" y1="12" x2="20" y2="3"/>
+              <line x1="1" y1="14" x2="7" y2="14"/>
+              <line x1="9" y1="8" x2="15" y2="8"/>
+              <line x1="17" y1="16" x2="23" y2="16"/>
+            </svg>
+          </button>
+        </Tooltip>
+      {:else}
+        <Tooltip text={m.tooltip_statistics()}>
+          <button
+            class="btn-icon"
+            onclick={() => onnavigate('stats')}
+            aria-label="Statistics"
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <line x1="18" y1="20" x2="18" y2="10"/>
+              <line x1="12" y1="20" x2="12" y2="4"/>
+              <line x1="6" y1="20" x2="6" y2="14"/>
+            </svg>
+          </button>
+        </Tooltip>
+      {/if}
+
+      <!-- Done button -->
+      <button
+        class="btn-done"
+        onclick={() => onnavigate('timer')}
+        aria-label="Done"
+      >
+        Done
+      </button>
+    {/if}
+
+    {#if !isMac}
       <button class="btn-icon" onclick={minimize} aria-label="Minimize">
         <svg width="12" height="12" viewBox="0 0 12 12">
           <line x1="1" y1="6" x2="11" y2="6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
@@ -195,12 +223,76 @@
     padding: 0 12px;
     position: relative;
     flex-shrink: 0;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    transition: border-color 0.2s ease;
+  }
+
+  .macos {
+    padding-left: 74px; /* Space for macOS traffic lights */
+  }
+
+  .titlebar-left {
+    display: flex;
+    align-items: center;
+    min-width: 80px;
+  }
+
+  .titlebar-center {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex: 1;
+    pointer-events: none;
+  }
+
+  .view-title {
+    font-size: 0.82rem;
+    font-weight: 500;
+    letter-spacing: -0.01em;
+    color: rgba(255, 255, 255, 0.75);
+  }
+
+  .nav-back-btn {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    padding: 4px 9px 4px 6px;
+    background: rgba(255, 255, 255, 0.06);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 6px;
+    color: rgba(255, 255, 255, 0.75);
+    font-size: 0.78rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.15s ease;
+  }
+
+  .nav-back-btn:hover {
+    background: rgba(255, 255, 255, 0.12);
+    color: #ffffff;
   }
 
   .controls {
     display: flex;
+    align-items: center;
     gap: 6px;
     margin-left: auto;
+  }
+
+  .btn-done {
+    padding: 4px 10px;
+    font-size: 0.76rem;
+    font-weight: 500;
+    background: rgba(255, 255, 255, 0.12);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 6px;
+    color: #ffffff;
+    cursor: pointer;
+    transition: all 0.15s ease;
+  }
+
+  .btn-done:hover {
+    background: rgba(255, 255, 255, 0.2);
   }
 
   .btn-icon {

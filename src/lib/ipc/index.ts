@@ -152,3 +152,7 @@ export const systemBridgeTestBreakLock = () => invoke<boolean>('system_bridge_te
 export const systemBridgeCloseBreakLock = () => invoke<boolean>('system_bridge_close_break_lock');
 export const systemBridgePauseMedia = () => invoke<string[]>('system_bridge_pause_media');
 export const systemBridgeResumeMedia = () => invoke<boolean>('system_bridge_resume_media');
+
+export async function resizeMainWindow(width: number, height: number): Promise<void> {
+  return invoke('resize_main_window', { width, height });
+}
