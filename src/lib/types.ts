@@ -61,6 +61,7 @@ export interface Settings {
   system_break_lock_enabled: boolean;
   system_media_pause_enabled: boolean;
   system_blocked_domains: string;
+  system_adult_domains: string;
 }
 
 /** Returned by `check_update` — describes an available update. */

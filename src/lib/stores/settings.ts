@@ -48,6 +48,7 @@ const defaults: Settings = {
   system_break_lock_enabled: true,
   system_media_pause_enabled: true,
   system_blocked_domains: 'twitter.com, x.com, facebook.com, instagram.com, youtube.com, reddit.com, tiktok.com, linkedin.com, netflix.com, twitch.tv',
+  system_adult_domains: 'pornhub.com, xvideos.com, xnxx.com, xhamster.com, redtube.com, youporn.com, chaturbate.com, onlyfans.com, stripchat.com, livejasmin.com, cam4.com, bongacams.com, eporner.com, spankbang.com, tube8.com, beeg.com, kemono.party, kemono.su, coomer.party, coomer.su, faphouse.com, brazzers.com, bangbros.com, naughtyamerica.com, realitykings.com, erome.com, rule34.xxx, nhentai.net, hanime.tv',
 };
 
 export const settings = writable<Settings>(defaults);

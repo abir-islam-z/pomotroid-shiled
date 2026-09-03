@@ -51,6 +51,13 @@ pub struct StartedPayload {
     pub total_secs: u32,
 }
 
+/// Payload for the  event.
+#[derive(Clone, serde::Serialize)]
+pub struct TickPayload {
+    pub elapsed_secs: u32,
+    pub total_secs: u32,
+}
+
 /// Events broadcast to all connected WebSocket clients.
 #[derive(Clone, serde::Serialize)]
 #[serde(tag = "type", rename_all = "camelCase")]
@@ -59,6 +66,7 @@ pub enum WsEvent {
     RoundChange { payload: TimerSnapshot },
     Paused { payload: ElapsedPayload },
     Resumed { payload: ElapsedPayload },
+    Tick { payload: TickPayload },
     Reset,
 }
 
@@ -127,6 +135,7 @@ pub async fn start(port: u16, app: AppHandle, state: &Arc<WsState>) {
 
     let router = Router::new()
         .route("/ws", get(ws_handler))
+        .route("/blocked", get(blocked_page_handler))
         .with_state(server_state);
 
     let handle = tokio::spawn(async move {
@@ -149,6 +158,12 @@ pub async fn stop(state: &Arc<WsState>) {
 // ---------------------------------------------------------------------------
 // WebSocket handler
 // ---------------------------------------------------------------------------
+
+const BLOCKED_HTML: &str = include_str!("blocked.html");
+
+async fn blocked_page_handler() -> axum::response::Html<&'static str> {
+    axum::response::Html(BLOCKED_HTML)
+}
 
 async fn ws_handler(
     ws: WebSocketUpgrade,
@@ -249,6 +264,13 @@ pub fn broadcast_resumed(state: &Arc<WsState>, elapsed_secs: u32) {
 /// Broadcast a `reset` event to all connected WebSocket clients.
 pub fn broadcast_reset(state: &Arc<WsState>) {
     let _ = state.broadcast_tx.send(WsEvent::Reset);
+}
+
+/// Broadcast a  event to all connected WebSocket clients.
+pub fn broadcast_tick(state: &Arc<WsState>, elapsed_secs: u32, total_secs: u32) {
+    let _ = state.broadcast_tx.send(WsEvent::Tick {
+        payload: TickPayload { elapsed_secs, total_secs },
+    });
 }
 
 // ---------------------------------------------------------------------------

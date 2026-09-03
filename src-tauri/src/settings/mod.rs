@@ -62,6 +62,7 @@ pub struct Settings {
     pub system_break_lock_enabled: bool,
     pub system_media_pause_enabled: bool,
     pub system_blocked_domains: String,
+    pub system_adult_domains: String,
     /// Last known window X coordinate (physical pixels). `None` = use OS default.
     pub window_x: Option<i32>,
     /// Last known window Y coordinate (physical pixels). `None` = use OS default.
@@ -112,7 +113,7 @@ impl Default for Settings {
             shortcut_restart: "Super+Shift+4".to_string(),
             #[cfg(not(target_os = "macos"))]
             shortcut_restart: "Control+F4".to_string(),
-            websocket_enabled: false,
+            websocket_enabled: true,
             websocket_port: 1314,
             language: "auto".to_string(),
             verbose_logging: false,
@@ -130,6 +131,7 @@ impl Default for Settings {
             system_break_lock_enabled: true,
             system_media_pause_enabled: true,
             system_blocked_domains: "twitter.com, x.com, facebook.com, instagram.com, youtube.com, reddit.com, tiktok.com, linkedin.com, netflix.com, twitch.tv".to_string(),
+            system_adult_domains: "pornhub.com, xvideos.com, xnxx.com, xhamster.com, redtube.com, youporn.com, chaturbate.com, onlyfans.com, stripchat.com, livejasmin.com, cam4.com, bongacams.com, eporner.com, spankbang.com, tube8.com, beeg.com, kemono.party, kemono.su, coomer.party, coomer.su, faphouse.com, brazzers.com, bangbros.com, naughtyamerica.com, realitykings.com, erome.com, rule34.xxx, nhentai.net, hanime.tv".to_string(),
             window_x: None,
             window_y: None,
             window_width: None,
@@ -260,6 +262,7 @@ pub fn load(conn: &Connection) -> Result<Settings> {
         system_break_lock_enabled: parse_bool(&map, "system_break_lock_enabled", d.system_break_lock_enabled),
         system_media_pause_enabled: parse_bool(&map, "system_media_pause_enabled", d.system_media_pause_enabled),
         system_blocked_domains: map.get("system_blocked_domains").cloned().unwrap_or(d.system_blocked_domains),
+        system_adult_domains: map.get("system_adult_domains").cloned().unwrap_or(d.system_adult_domains),
         window_x: parse_opt_i32(&map, "window_x"),
         window_y: parse_opt_i32(&map, "window_y"),
         window_width: parse_opt_u32(&map, "window_width"),

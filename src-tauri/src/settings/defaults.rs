@@ -24,7 +24,7 @@ pub const DEFAULTS: &[(&str, &str)] = &[
     ("time_short_break_secs", "300"),
     ("time_long_break_secs", "900"),
     ("volume", "100"),
-    ("websocket_enabled", "false"),
+    ("websocket_enabled", "true"),
     ("websocket_port", "1314"),
     ("language", "auto"),
     ("verbose_logging", "false"),
@@ -44,5 +44,6 @@ pub const DEFAULTS: &[(&str, &str)] = &[
     ("system_break_lock_enabled", "true"),
     ("system_media_pause_enabled", "true"),
     ("system_blocked_domains", "twitter.com, x.com, facebook.com, instagram.com, youtube.com, reddit.com, tiktok.com, linkedin.com, netflix.com, twitch.tv"),
+    ("system_adult_domains", "pornhub.com, xvideos.com, xnxx.com, xhamster.com, redtube.com, youporn.com, chaturbate.com, onlyfans.com, stripchat.com, livejasmin.com, cam4.com, bongacams.com, eporner.com, spankbang.com, tube8.com, beeg.com, kemono.party, kemono.su, coomer.party, coomer.su, faphouse.com, brazzers.com, bangbros.com, naughtyamerica.com, realitykings.com, erome.com, rule34.xxx, nhentai.net, hanime.tv"),
 
 ];

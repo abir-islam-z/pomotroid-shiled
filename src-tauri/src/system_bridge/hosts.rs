@@ -25,6 +25,14 @@ pub const DEFAULT_ADULT_DOMAINS: &[&str] = &[
     "realitykings.com", "porn.com", "rule34.xxx", "e-hentai.org",
     "gelbooru.com", "danbooru.donmai.us", "nhentai.net", "hanime.tv",
     "luscious.net", "erome.com", "coomer.party", "kemono.party",
+    "coomer.su", "kemono.su", "fansly.com", "manyvids.com",
+    "camsoda.com", "myfreecams.com", "flirt4free.com", "fapello.com",
+    "fapcat.com", "hitomi.la", "pururin.io", "hentaihaven.xxx",
+    "e621.net", "simpcity.su", "thothub.to", "missav.com",
+    "jable.tv", "txxx.com", "drtuber.com", "porntrex.com",
+    "thumbzilla.com", "empflix.com", "hentai2read.com", "multporn.net",
+    "javlibrary.com", "javhd.com", "javbus.com", "7mmtv.tv",
+    "badjojo.com", "sex.com", "xxx.com"
 ];
 
 pub fn is_hosts_writable() -> bool {
@@ -161,12 +169,27 @@ pub fn update_hosts(
     focus_blocked: bool,
     focus_domains: &[String],
     adult_blocked: bool,
+    explicit_adult_domains: &[String],
 ) -> Result<(), String> {
     let existing = fs::read_to_string(HOSTS_PATH).map_err(|e| e.to_string())?;
 
     let mut cleaned = remove_section(&existing, FOCUS_START, FOCUS_END);
     cleaned = remove_section(&cleaned, ADULT_START, ADULT_END);
-    let mut content = cleaned.trim_end().to_string();
+    let mut content = cleaned.trim().to_string();
+
+    if !content.contains("pomotroid.shield") {
+        content = format!("127.0.0.1	pomotroid.shield
+::1	pomotroid.shield
+
+{content}");
+    }
+    if !content.contains("localhost") {
+        content = format!("127.0.0.1	localhost
+255.255.255.255	broadcasthost
+::1	localhost
+
+{content}");
+    }
 
     if focus_blocked && !focus_domains.is_empty() {
         content.push_str(&build_section(
@@ -178,7 +201,17 @@ pub fn update_hosts(
     }
 
     if adult_blocked {
-        let adult_strings: Vec<String> = DEFAULT_ADULT_DOMAINS.iter().map(|s| s.to_string()).collect();
+        let mut adult_set = std::collections::HashSet::new();
+        for d in explicit_adult_domains {
+            let clean = d.trim().to_lowercase();
+            if !clean.is_empty() {
+                adult_set.insert(clean);
+            }
+        }
+        for d in DEFAULT_ADULT_DOMAINS {
+            adult_set.insert(d.trim().to_lowercase());
+        }
+        let adult_strings: Vec<String> = adult_set.into_iter().collect();
         content.push_str(&build_section(
             ADULT_START,
             ADULT_END,

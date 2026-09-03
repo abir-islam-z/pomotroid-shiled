@@ -93,6 +93,8 @@ impl TimerController {
         let engine_thread = engine.clone();
         let tray_thread = Arc::clone(&tray);
         let system_bridge = Arc::new(SystemBridge::new());
+        let initial_snap = settings_arc.lock().unwrap().clone();
+        system_bridge.init(&initial_snap);
         let system_bridge_thread = Arc::clone(&system_bridge);
 
         std::thread::Builder::new()
@@ -279,6 +281,9 @@ fn listen_events(
                     "timer:tick",
                     serde_json::json!({ "elapsed_secs": elapsed_secs, "total_secs": total_secs }),
                 );
+                if let Some(ws) = app.try_state::<Arc<WsState>>() {
+                    websocket::broadcast_tick(&ws, elapsed_secs, total_secs);
+                }
 
                 // --- Session recording: start on first tick of a new round ---
                 if elapsed_secs == 1 && current_session_id.is_none() {

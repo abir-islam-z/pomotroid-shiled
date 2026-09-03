@@ -144,6 +144,7 @@ export interface SystemBridgeStatus {
   system_break_lock_enabled: boolean;
   system_media_pause_enabled: boolean;
   system_blocked_domains: string;
+  system_adult_domains: string;
 }
 
 export const systemBridgeGetStatus = () => invoke<SystemBridgeStatus>('system_bridge_get_status');

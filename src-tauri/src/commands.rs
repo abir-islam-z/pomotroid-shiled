@@ -214,6 +214,12 @@ pub fn settings_set(
         });
     }
 
+    if matches!(key.as_str(), "system_adult_shield_enabled" | "system_block_enabled" | "system_blocked_domains" | "system_adult_domains") {
+        if let Some(timer) = app.try_state::<TimerController>() {
+            timer.system_bridge.init(&new_settings);
+        }
+    }
+
     app.emit("settings:changed", &new_settings).ok();
     Ok(new_settings)
 }
