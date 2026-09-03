@@ -64,7 +64,6 @@
         const activeTheme = themes.find((t) => t.name === resolveThemeName(s, osDark)) ?? themes[0];
         if (activeTheme) applyTheme(activeTheme);
 
-        // Show window immediately after theme is applied
         await getCurrentWebviewWindow().show();
 
         detailed = await statsGetDetailed();
@@ -129,50 +128,51 @@
 </script>
 
 <div class="window">
-  <!-- Titlebar -->
+  <!-- Clean macOS Titlebar with Segmented Control -->
   <nav class="titlebar" class:macos={isMac} data-tauri-drag-region>
-    <span class="titlebar-label">{m.stats_title()}</span>
-    {#if !isMac}
-      <button class="btn-close" onclick={close} aria-label="Close">
-        <svg width="12" height="12" viewBox="0 0 12 12">
-          <line
-            x1="1"
-            y1="1"
-            x2="11"
-            y2="11"
-            stroke="currentColor"
-            stroke-width="1.5"
-            stroke-linecap="round"
-          />
-          <line
-            x1="11"
-            y1="1"
-            x2="1"
-            y2="11"
-            stroke="currentColor"
-            stroke-width="1.5"
-            stroke-linecap="round"
-          />
-        </svg>
+    <div class="titlebar-left">
+      <span class="titlebar-label">Statistics</span>
+    </div>
+
+    <!-- Apple Native Segmented Control for Timeframe -->
+    <div class="timeframe-selector" data-tauri-drag-region="false">
+      <button
+        class="segment-btn"
+        class:active={activeTab === 'today'}
+        onclick={() => switchTab('today')}
+      >
+        Today
       </button>
-    {/if}
+      <button
+        class="segment-btn"
+        class:active={activeTab === 'week'}
+        onclick={() => switchTab('week')}
+      >
+        This Week
+      </button>
+      <button
+        class="segment-btn"
+        class:active={activeTab === 'alltime'}
+        onclick={() => switchTab('alltime')}
+      >
+        All Time
+      </button>
+    </div>
+
+    <div class="titlebar-right">
+      {#if !isMac}
+        <button class="btn-close" onclick={close} aria-label="Close">
+          <svg width="12" height="12" viewBox="0 0 12 12">
+            <line x1="1" y1="1" x2="11" y2="11" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+            <line x1="11" y1="1" x2="1" y2="11" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+          </svg>
+        </button>
+      {/if}
+    </div>
   </nav>
 
-  <!-- Tab bar -->
-  <div class="tabs">
-    <button class="tab" class:active={activeTab === 'today'} onclick={() => switchTab('today')}
-      >{m.stats_tab_today()}</button
-    >
-    <button class="tab" class:active={activeTab === 'week'} onclick={() => switchTab('week')}
-      >{m.stats_tab_week()}</button
-    >
-    <button class="tab" class:active={activeTab === 'alltime'} onclick={() => switchTab('alltime')}
-      >{m.stats_tab_alltime()}</button
-    >
-  </div>
-
-  <!-- Content -->
-  <div class="content">
+  <!-- Content Container -->
+  <main class="content">
     {#if activeTab === 'today'}
       <DailyView today={detailed?.today ?? null} />
     {:else if activeTab === 'week'}
@@ -180,7 +180,7 @@
     {:else}
       <YearlyView {heatmap} />
     {/if}
-  </div>
+  </main>
 </div>
 
 <style>
@@ -188,40 +188,89 @@
     display: flex;
     flex-direction: column;
     height: 100vh;
-    background: var(--color-background);
+    background: rgba(22, 25, 36, 0.88);
+    backdrop-filter: blur(48px) saturate(180%);
+    -webkit-backdrop-filter: blur(48px) saturate(180%);
     color: var(--color-foreground);
-    animation: app-fade-in 0.18s ease;
+    animation: app-fade-in 0.25s var(--transition-default);
     overflow: hidden;
     cursor: default;
+    border: none;
+    box-shadow: none;
   }
 
-  /* ── Titlebar ──────────────────────────────────────────── */
+  /* ── Titlebar with Inset Controls ──────────────────────────────── */
   .titlebar {
-    height: 40px;
+    height: 44px;
     display: flex;
     align-items: center;
-    justify-content: center;
+    justify-content: space-between;
+    padding: 0 16px;
     position: relative;
     flex-shrink: 0;
-    border-bottom: 1px solid var(--color-separator);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
   }
 
   .macos {
-    padding-left: 72px;
+    padding-left: 78px;
+  }
+
+  .titlebar-left {
+    display: flex;
+    align-items: center;
+    min-width: 100px;
   }
 
   .titlebar-label {
-    font-size: 0.75rem;
-    font-weight: 600;
-    letter-spacing: 0.1em;
-    text-transform: uppercase;
-    color: var(--color-foreground-darker);
+    font-size: 0.82rem;
+    font-weight: 500;
+    letter-spacing: -0.01em;
+    color: rgba(255, 255, 255, 0.7);
     pointer-events: none;
   }
 
+  .titlebar-right {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    min-width: 100px;
+  }
+
+  /* ── Apple Native Segmented Control ─────────────────────────────── */
+  .timeframe-selector {
+    display: flex;
+    background: rgba(0, 0, 0, 0.28);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 8px;
+    padding: 2px;
+    gap: 2px;
+  }
+
+  .segment-btn {
+    padding: 4px 16px;
+    background: transparent;
+    border: none;
+    border-radius: 6px;
+    font-size: 0.76rem;
+    font-weight: 400;
+    color: rgba(255, 255, 255, 0.65);
+    cursor: pointer;
+    transition: all 0.15s ease;
+    white-space: nowrap;
+  }
+
+  .segment-btn:hover {
+    color: rgba(255, 255, 255, 0.9);
+  }
+
+  .segment-btn.active {
+    background: rgba(255, 255, 255, 0.14);
+    color: #ffffff;
+    font-weight: 500;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+  }
+
   .btn-close {
-    position: absolute;
-    right: 8px;
     background: none;
     border: none;
     cursor: pointer;
@@ -232,56 +281,19 @@
     width: 28px;
     height: 28px;
     border-radius: 4px;
-    transition:
-      color 0.15s,
-      background 0.15s;
+    transition: all 0.15s;
   }
 
   .btn-close:hover {
-    color: var(--color-background);
-    background: var(--color-focus-round);
+    color: #ffffff;
+    background: #FF453A;
   }
 
-  /* ── Tabs ──────────────────────────────────────────────── */
-  .tabs {
-    display: flex;
-    gap: 0;
-    border-bottom: 1px solid var(--color-separator);
-    flex-shrink: 0;
-    padding: 0 24px;
-  }
-
-  .tab {
-    background: none;
-    border: none;
-    border-bottom: 2px solid transparent;
-    margin-bottom: -1px;
-    padding: 10px 20px;
-    font-size: 0.78rem;
-    font-weight: 600;
-    letter-spacing: 0.06em;
-    text-transform: uppercase;
-    color: var(--color-foreground-darker);
-    cursor: pointer;
-    transition:
-      color 0.15s,
-      border-color 0.15s;
-  }
-
-  .tab:hover {
-    color: var(--color-foreground);
-  }
-
-  .tab.active {
-    color: var(--color-focus-round);
-    border-bottom-color: var(--color-focus-round);
-  }
-
-  /* ── Content ───────────────────────────────────────────── */
+  /* ── Content ─────────────────────────────────────────────── */
   .content {
     flex: 1;
-    overflow: hidden;
-    display: flex;
-    flex-direction: column;
+    overflow-y: auto;
+    overflow-x: hidden;
+    padding: 20px 24px 24px;
   }
 </style>

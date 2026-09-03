@@ -5,16 +5,14 @@
 
   let { week, streak }: { week: DayStat[] | null; streak: StreakInfo | null } = $props();
 
-  const CHART_H = 140; // px, max bar height
-  const BAR_W = 52; // px per bar
-  const BAR_GAP = 16; // px between bars
-  const CHART_W = 7 * (BAR_W + BAR_GAP) - BAR_GAP; // 412px
+  const CHART_H = 140;
+  const BAR_W = 46;
+  const BAR_GAP = 14;
+  const CHART_W = 7 * (BAR_W + BAR_GAP) - BAR_GAP; // ~406px
 
-  // Reactive to app language setting — updates when user changes language in Settings.
   const shortFmt = $derived(new Intl.DateTimeFormat(getLocale(), { weekday: 'short' }));
   const narrowFmt = $derived(new Intl.DateTimeFormat(getLocale(), { weekday: 'narrow' }));
 
-  // Build a 7-day array (today and the previous 6 days), oldest first.
   const days = $derived.by(() => {
     const countByDate = new Map((week ?? []).map((d) => [d.date, d.rounds]));
 
@@ -45,84 +43,94 @@
 </script>
 
 <div class="view">
-  <!-- Summary row -->
-  <div class="summary">
-    <div class="summary-item">
-      <span class="summary-label">{m.stats_this_week()}</span>
-      <span class="summary-value">{totalWeek} {m.stats_rounds().toLowerCase()}</span>
-    </div>
-    {#if streak}
-      <div class="summary-item streak">
-        <span class="summary-label">{m.stats_current_streak()}</span>
-        <span class="summary-value">
-          {#if streak.current > 0}
-            <span class="flame" aria-hidden="true">🔥</span>{streak.current}
-            {streak.current === 1 ? m.stats_day() : m.stats_days()}
-          {:else}
-            <span class="streak-none">{m.stats_no_active_streak()}</span>
-          {/if}
-        </span>
+  <!-- Inset Frosted Stat Cards Row -->
+  <div class="cards-grid">
+    <div class="stat-card">
+      <div class="card-header">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="card-icon">
+          <circle cx="12" cy="12" r="10"/>
+          <path d="M12 6v6l4 2"/>
+        </svg>
+        <span class="card-label">This Week's Rounds</span>
       </div>
-    {/if}
+      <span class="card-value">{totalWeek}</span>
+    </div>
+
+    <div class="stat-card">
+      <div class="card-header">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="card-icon">
+          <path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z"/>
+        </svg>
+        <span class="card-label">Focus Streak</span>
+      </div>
+      <div class="card-streak-val">
+        {#if streak && streak.current > 0}
+          <span class="card-value">{streak.current}</span>
+          <span class="card-unit">{streak.current === 1 ? 'day' : 'days'}</span>
+        {:else}
+          <span class="card-value-muted">No active streak</span>
+        {/if}
+      </div>
+    </div>
   </div>
 
-  <!-- Bar chart -->
-  <div class="chart-section">
-    {#if !hasData}
-      <div class="empty">
-        <span>{m.stats_no_sessions_week()}</span>
-      </div>
-    {:else}
-      <div class="chart-wrap">
-        <svg
-          width={CHART_W}
-          height={CHART_H + 36}
-          viewBox="0 0 {CHART_W} {CHART_H + 36}"
-          class="chart"
-        >
-          {#each days as day, i}
-            {@const barH = Math.max(
-              day.rounds > 0 ? 4 : 0,
-              Math.round((day.rounds / maxRounds) * CHART_H)
-            )}
-            {@const x = i * (BAR_W + BAR_GAP)}
-            {@const y = CHART_H - barH}
+  <!-- Weekly Activity Chart Card -->
+  <div class="chart-card">
+    <div class="section-header">
+      <span class="section-title">Weekly Focus Activity</span>
+      {#if !hasData}
+        <span class="empty-hint">No sessions completed this week</span>
+      {/if}
+    </div>
 
-            <!-- Bar -->
-            <rect
-              {x}
-              {y}
-              width={BAR_W}
-              height={barH}
-              rx="3"
-              class="bar"
-              class:bar-today={day.isToday}
-              class:bar-empty={day.rounds === 0}
-              style="--bar-delay: {i * 40}ms"
-            />
+    <div class="chart-wrap">
+      <svg
+        width={CHART_W}
+        height={CHART_H + 34}
+        viewBox="0 0 {CHART_W} {CHART_H + 34}"
+        class="chart"
+      >
+        {#each days as day, i}
+          {@const barH = Math.max(day.rounds > 0 ? 6 : 2, Math.round((day.rounds / maxRounds) * CHART_H))}
+          {@const x = i * (BAR_W + BAR_GAP)}
+          {@const y = CHART_H - barH}
 
-            <!-- Round count label above bar -->
-            {#if day.rounds > 0}
-              <text x={x + BAR_W / 2} y={y - 5} text-anchor="middle" class="count-label"
-                >{day.rounds}</text
-              >
-            {/if}
+          <!-- Bar -->
+          <rect
+            {x}
+            {y}
+            width={BAR_W}
+            height={barH}
+            rx="4"
+            class="bar"
+            class:bar-today={day.isToday}
+            class:bar-empty={day.rounds === 0}
+            style="--bar-delay: {i * 35}ms"
+          />
 
-            <!-- Day label -->
-            <text
-              x={x + BAR_W / 2}
-              y={CHART_H + 20}
-              text-anchor="middle"
-              class="day-label"
-              class:day-label-today={day.isToday}>{day.short}</text
-            >
-          {/each}
+          <!-- Round count label -->
+          {#if day.rounds > 0}
+            <text x={x + BAR_W / 2} y={y - 6} text-anchor="middle" class="count-label">
+              {day.rounds}
+            </text>
+          {/if}
 
-          <!-- Baseline -->
-          <line x1="0" y1={CHART_H} x2={CHART_W} y2={CHART_H} class="baseline" />
-        </svg>
-      </div>
-    {/if}
+          <!-- Day label -->
+          <text
+            x={x + BAR_W / 2}
+            y={CHART_H + 20}
+            text-anchor="middle"
+            class="day-label"
+            class:day-label-today={day.isToday}
+          >
+            {day.label}
+          </text>
+        {/each}
+
+        <!-- Baseline -->
+        <line x1="0" y1={CHART_H} x2={CHART_W} y2={CHART_H} class="baseline" />
+      </svg>
+    </div>
   </div>
 </div>
 
@@ -130,134 +138,152 @@
   .view {
     display: flex;
     flex-direction: column;
-    height: 100%;
+    gap: 16px;
     animation: app-fade-in 0.2s ease;
   }
 
-  /* ── Summary row ─────────────────────────────────────────── */
-  .summary {
-    display: flex;
-    gap: 32px;
-    padding: 20px 32px 16px;
-    border-bottom: 1px solid var(--color-separator);
-    flex-shrink: 0;
+  .cards-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
   }
 
-  .summary-item {
+  .stat-card {
     display: flex;
     flex-direction: column;
-    gap: 3px;
+    gap: 8px;
+    padding: 16px 20px 18px;
+    background: rgba(255, 255, 255, 0.035);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border: 1px solid rgba(255, 255, 255, 0.07);
+    border-radius: 12px;
+    transition: all 0.2s ease;
   }
 
-  .summary-label {
-    font-size: 0.67rem;
-    font-weight: 600;
-    letter-spacing: 0.1em;
-    text-transform: uppercase;
-    color: var(--color-foreground-darker);
+  .stat-card:hover {
+    background: rgba(255, 255, 255, 0.05);
+    border-color: rgba(255, 255, 255, 0.12);
   }
 
-  .summary-value {
-    font-size: 1.1rem;
-    font-weight: 600;
-    font-variant-numeric: tabular-nums;
-    color: var(--color-foreground);
+  .card-header {
     display: flex;
     align-items: center;
-    gap: 5px;
+    gap: 7px;
   }
 
-  .streak-none {
+  .card-icon {
+    color: rgba(255, 255, 255, 0.5);
+  }
+
+  .card-label {
+    font-size: 0.74rem;
+    font-weight: 500;
+    color: rgba(255, 255, 255, 0.55);
+    letter-spacing: -0.01em;
+  }
+
+  .card-value {
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Rounded", system-ui, sans-serif;
+    font-size: 2.15rem;
+    font-weight: 250;
+    font-variant-numeric: tabular-nums;
+    letter-spacing: -0.03em;
+    color: #ffffff;
+    line-height: 1;
+  }
+
+  .card-streak-val {
+    display: flex;
+    align-items: baseline;
+    gap: 6px;
+  }
+
+  .card-unit {
     font-size: 0.9rem;
     font-weight: 400;
-    color: var(--color-foreground-darker);
+    color: rgba(255, 255, 255, 0.6);
   }
 
-  .flame {
-    font-size: 1rem;
+  .card-value-muted {
+    font-size: 1.1rem;
+    font-weight: 400;
+    color: rgba(255, 255, 255, 0.35);
+    padding-top: 6px;
   }
 
-  /* ── Bar chart ───────────────────────────────────────────── */
-  .chart-section {
-    flex: 1;
+  .chart-card {
     display: flex;
-    align-items: center;
-    justify-content: center;
-    padding: 24px 32px;
+    flex-direction: column;
+    padding: 20px 24px 18px;
+    gap: 16px;
+    background: rgba(255, 255, 255, 0.035);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border: 1px solid rgba(255, 255, 255, 0.07);
+    border-radius: 12px;
   }
 
-  .empty {
+  .section-header {
     display: flex;
-    align-items: center;
-    justify-content: center;
-    color: var(--color-foreground-darker);
-    font-size: 0.85rem;
+    align-items: baseline;
+    gap: 12px;
+  }
+
+  .section-title {
+    font-size: 0.76rem;
+    font-weight: 500;
+    color: rgba(255, 255, 255, 0.7);
+    letter-spacing: -0.01em;
+  }
+
+  .empty-hint {
+    font-size: 0.72rem;
+    color: rgba(255, 255, 255, 0.35);
     font-style: italic;
-    opacity: 0.7;
   }
 
   .chart-wrap {
-    overflow: visible;
-  }
-  .chart {
-    display: block;
-    overflow: visible;
+    display: flex;
+    justify-content: center;
+    overflow-x: auto;
   }
 
   .bar {
-    fill: color-mix(in oklch, var(--color-focus-round) 55%, var(--color-background-light));
-    transform-origin: bottom;
-    transform-box: fill-box;
-    animation: bar-rise 0.45s cubic-bezier(0.22, 1, 0.36, 1) both;
-    animation-delay: var(--bar-delay, 0ms);
-  }
-
-  @keyframes bar-rise {
-    from {
-      transform: scaleY(0);
-      opacity: 0;
-    }
-    to {
-      transform: scaleY(1);
-      opacity: 1;
-    }
+    fill: var(--color-focus-round);
+    opacity: 0.85;
+    transition: all 0.15s ease;
   }
 
   .bar-today {
-    fill: var(--color-focus-round);
+    fill: color-mix(in srgb, var(--color-focus-round) 85%, white 15%);
+    filter: drop-shadow(0 0 6px color-mix(in oklch, var(--color-focus-round) 30%, transparent));
   }
 
   .bar-empty {
-    fill: color-mix(in oklch, var(--color-foreground) 6%, transparent);
-    animation: none;
+    fill: rgba(255, 255, 255, 0.06);
   }
 
   .count-label {
-    fill: var(--color-foreground-darker);
-    font-size: 10px;
-    font-weight: 600;
+    fill: rgba(255, 255, 255, 0.75);
+    font-size: 11px;
+    font-weight: 500;
     font-variant-numeric: tabular-nums;
-    animation: app-fade-in 0.3s ease both;
-    animation-delay: 0.35s;
-    cursor: default;
   }
 
   .day-label {
-    fill: var(--color-foreground-darker);
-    font-size: 10px;
+    fill: rgba(255, 255, 255, 0.45);
+    font-size: 10.5px;
     font-weight: 500;
-    text-transform: uppercase;
-    letter-spacing: 0.04em;
-    cursor: default;
   }
 
   .day-label-today {
-    fill: var(--color-focus-round);
-    font-weight: 700;
+    fill: #ffffff;
+    font-weight: 600;
   }
 
   .baseline {
-    stroke: var(--color-separator);
+    stroke: rgba(255, 255, 255, 0.06);
     stroke-width: 1;
   }
 </style>

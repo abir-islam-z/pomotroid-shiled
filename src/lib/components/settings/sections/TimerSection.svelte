@@ -8,18 +8,15 @@
   const MAX_SECS = 5400; // 90:00
   const MAX_ROUNDS = 12;
 
-  // Slider positions (whole minutes) derived from stored seconds.
   let workMins = $derived(Math.round($settings.time_work_secs / 60));
   let shortMins = $derived(Math.round($settings.time_short_break_secs / 60));
   let longMins = $derived(Math.round($settings.time_long_break_secs / 60));
   let rounds = $derived($settings.long_break_interval);
 
-  // Per-row edit state: the raw text the user is currently typing.
   let workEdit = $state<string | null>(null);
   let shortEdit = $state<string | null>(null);
   let longEdit = $state<string | null>(null);
 
-  /** Parse MM:SS or bare integer minutes. Returns total seconds, or null on failure. */
   function parseMMSS(input: string): number | null {
     const trimmed = input.trim();
     const colonIdx = trimmed.indexOf(':');
@@ -34,15 +31,12 @@
     return mm * 60 + ss;
   }
 
-  /** Format total seconds as M:SS or MM:SS. */
   function formatMMSS(totalSecs: number): string {
     const mins = Math.floor(totalSecs / 60);
     const secs = totalSecs % 60;
     return `${mins}:${String(secs).padStart(2, '0')}`;
   }
 
-  // Returns a CSS width value that matches the browser's native thumb center
-  // position for a range input with the given min/max and a 14 px thumb.
   function barWidth(val: number, min: number, max: number): string {
     const frac = (val - min) / (max - min);
     return `calc(${frac} * (100% - 14px) + 7px)`;
@@ -58,7 +52,6 @@
     settings.set(updated);
   }
 
-  /** Commit an edited badge value: parse, clamp, save. Reverts on invalid input. */
   async function commitBadge(
     raw: string | null,
     currentSecs: number,
@@ -81,32 +74,24 @@
 </script>
 
 <div class="section">
-  <!-- Focus -->
-  <div class="slider-row">
-    <div class="slider-meta">
-      <span class="slider-label">{m.timer_slider_focus()}</span>
-      <input
-        class="slider-value"
-        type="text"
-        value={workEdit ?? formatMMSS($settings.time_work_secs)}
-        onfocus={(e) => {
-          workEdit = (e.target as HTMLInputElement).value;
-          (e.target as HTMLInputElement).select();
-        }}
-        oninput={(e) => {
-          workEdit = (e.target as HTMLInputElement).value;
-        }}
-        onblur={async (e) => {
-          await commitBadge(
-            workEdit,
-            $settings.time_work_secs,
-            'time_work_secs',
-            e.target as HTMLInputElement
-          );
-          workEdit = null;
-        }}
-        onkeydown={async (e) => {
-          if (e.key === 'Enter') {
+  <!-- Work Session -->
+  <div class="group-heading">Focus Duration</div>
+  <div class="group-card">
+    <div class="slider-row">
+      <div class="slider-meta">
+        <span class="slider-label">{m.timer_slider_focus()}</span>
+        <input
+          class="slider-value"
+          type="text"
+          value={workEdit ?? formatMMSS($settings.time_work_secs)}
+          onfocus={(e) => {
+            workEdit = (e.target as HTMLInputElement).value;
+            (e.target as HTMLInputElement).select();
+          }}
+          oninput={(e) => {
+            workEdit = (e.target as HTMLInputElement).value;
+          }}
+          onblur={async (e) => {
             await commitBadge(
               workEdit,
               $settings.time_work_secs,
@@ -114,63 +99,66 @@
               e.target as HTMLInputElement
             );
             workEdit = null;
-            (e.target as HTMLInputElement).blur();
-          } else if (e.key === 'Escape') {
-            workEdit = null;
-            (e.target as HTMLInputElement).value = formatMMSS($settings.time_work_secs);
-            (e.target as HTMLInputElement).blur();
-          }
-        }}
-      />
-    </div>
-    <div class="slider-wrap">
-      <input
-        type="range"
-        min="1"
-        max="90"
-        step="1"
-        value={workMins}
-        class="slider"
-        oninput={(e) =>
-          handleChange('time_work_secs', (e.target as HTMLInputElement).valueAsNumber * 60)}
-      />
-      <div class="bar bar--focus" style="width: {barWidth(workMins, 1, 90)}"></div>
-    </div>
-  </div>
-
-  <!-- Short Break toggle + slider -->
-  <SettingsToggle
-    label={m.timer_toggle_short_breaks()}
-    description={m.timer_toggle_short_breaks_desc()}
-    checked={!$settings.short_breaks_enabled}
-    onclick={() => toggle('short_breaks_enabled', $settings.short_breaks_enabled)}
-  />
-  <div class="break-body" class:disabled={!$settings.short_breaks_enabled}>
-    <div class="slider-row">
-      <div class="slider-meta">
-        <span class="slider-label">{m.timer_slider_short_break()}</span>
-        <input
-          class="slider-value"
-          type="text"
-          value={shortEdit ?? formatMMSS($settings.time_short_break_secs)}
-          onfocus={(e) => {
-            shortEdit = (e.target as HTMLInputElement).value;
-            (e.target as HTMLInputElement).select();
-          }}
-          oninput={(e) => {
-            shortEdit = (e.target as HTMLInputElement).value;
-          }}
-          onblur={async (e) => {
-            await commitBadge(
-              shortEdit,
-              $settings.time_short_break_secs,
-              'time_short_break_secs',
-              e.target as HTMLInputElement
-            );
-            shortEdit = null;
           }}
           onkeydown={async (e) => {
             if (e.key === 'Enter') {
+              await commitBadge(
+                workEdit,
+                $settings.time_work_secs,
+                'time_work_secs',
+                e.target as HTMLInputElement
+              );
+              workEdit = null;
+              (e.target as HTMLInputElement).blur();
+            } else if (e.key === 'Escape') {
+              workEdit = null;
+              (e.target as HTMLInputElement).value = formatMMSS($settings.time_work_secs);
+              (e.target as HTMLInputElement).blur();
+            }
+          }}
+        />
+      </div>
+      <div class="slider-wrap">
+        <input
+          type="range"
+          min="1"
+          max="90"
+          step="1"
+          value={workMins}
+          class="slider"
+          oninput={(e) =>
+            handleChange('time_work_secs', (e.target as HTMLInputElement).valueAsNumber * 60)}
+        />
+        <div class="bar bar--focus" style="width: {barWidth(workMins, 1, 90)}"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Short Break -->
+  <div class="group-heading">Short Breaks</div>
+  <div class="group-card">
+    <SettingsToggle
+      label={m.timer_toggle_short_breaks()}
+      description={m.timer_toggle_short_breaks_desc()}
+      checked={!$settings.short_breaks_enabled}
+      onclick={() => toggle('short_breaks_enabled', $settings.short_breaks_enabled)}
+    />
+    <div class="break-body" class:disabled={!$settings.short_breaks_enabled}>
+      <div class="slider-row">
+        <div class="slider-meta">
+          <span class="slider-label">{m.timer_slider_short_break()}</span>
+          <input
+            class="slider-value"
+            type="text"
+            value={shortEdit ?? formatMMSS($settings.time_short_break_secs)}
+            onfocus={(e) => {
+              shortEdit = (e.target as HTMLInputElement).value;
+              (e.target as HTMLInputElement).select();
+            }}
+            oninput={(e) => {
+              shortEdit = (e.target as HTMLInputElement).value;
+            }}
+            onblur={async (e) => {
               await commitBadge(
                 shortEdit,
                 $settings.time_short_break_secs,
@@ -178,67 +166,70 @@
                 e.target as HTMLInputElement
               );
               shortEdit = null;
-              (e.target as HTMLInputElement).blur();
-            } else if (e.key === 'Escape') {
-              shortEdit = null;
-              (e.target as HTMLInputElement).value = formatMMSS($settings.time_short_break_secs);
-              (e.target as HTMLInputElement).blur();
-            }
-          }}
-        />
-      </div>
-      <div class="slider-wrap">
-        <input
-          type="range"
-          min="1"
-          max="90"
-          step="1"
-          value={shortMins}
-          class="slider"
-          oninput={(e) =>
-            handleChange(
-              'time_short_break_secs',
-              (e.target as HTMLInputElement).valueAsNumber * 60
-            )}
-        />
-        <div class="bar bar--short" style="width: {barWidth(shortMins, 1, 90)}"></div>
+            }}
+            onkeydown={async (e) => {
+              if (e.key === 'Enter') {
+                await commitBadge(
+                  shortEdit,
+                  $settings.time_short_break_secs,
+                  'time_short_break_secs',
+                  e.target as HTMLInputElement
+                );
+                shortEdit = null;
+                (e.target as HTMLInputElement).blur();
+              } else if (e.key === 'Escape') {
+                shortEdit = null;
+                (e.target as HTMLInputElement).value = formatMMSS($settings.time_short_break_secs);
+                (e.target as HTMLInputElement).blur();
+              }
+            }}
+          />
+        </div>
+        <div class="slider-wrap">
+          <input
+            type="range"
+            min="1"
+            max="90"
+            step="1"
+            value={shortMins}
+            class="slider"
+            oninput={(e) =>
+              handleChange(
+                'time_short_break_secs',
+                (e.target as HTMLInputElement).valueAsNumber * 60
+              )}
+          />
+          <div class="bar bar--short" style="width: {barWidth(shortMins, 1, 90)}"></div>
+        </div>
       </div>
     </div>
   </div>
 
-  <!-- Long Break toggle + slider + rounds -->
-  <SettingsToggle
-    label={m.timer_toggle_long_breaks()}
-    description={m.timer_toggle_long_breaks_desc()}
-    checked={!$settings.long_breaks_enabled}
-    onclick={() => toggle('long_breaks_enabled', $settings.long_breaks_enabled)}
-  />
-  <div class="break-body" class:disabled={!$settings.long_breaks_enabled}>
-    <div class="slider-row">
-      <div class="slider-meta">
-        <span class="slider-label">{m.timer_slider_long_break()}</span>
-        <input
-          class="slider-value"
-          type="text"
-          value={longEdit ?? formatMMSS($settings.time_long_break_secs)}
-          onfocus={(e) => {
-            longEdit = (e.target as HTMLInputElement).value;
-            (e.target as HTMLInputElement).select();
-          }}
-          oninput={(e) => {
-            longEdit = (e.target as HTMLInputElement).value;
-          }}
-          onblur={async (e) => {
-            await commitBadge(
-              longEdit,
-              $settings.time_long_break_secs,
-              'time_long_break_secs',
-              e.target as HTMLInputElement
-            );
-            longEdit = null;
-          }}
-          onkeydown={async (e) => {
-            if (e.key === 'Enter') {
+  <!-- Long Break -->
+  <div class="group-heading">Long Breaks</div>
+  <div class="group-card">
+    <SettingsToggle
+      label={m.timer_toggle_long_breaks()}
+      description={m.timer_toggle_long_breaks_desc()}
+      checked={!$settings.long_breaks_enabled}
+      onclick={() => toggle('long_breaks_enabled', $settings.long_breaks_enabled)}
+    />
+    <div class="break-body" class:disabled={!$settings.long_breaks_enabled}>
+      <div class="slider-row">
+        <div class="slider-meta">
+          <span class="slider-label">{m.timer_slider_long_break()}</span>
+          <input
+            class="slider-value"
+            type="text"
+            value={longEdit ?? formatMMSS($settings.time_long_break_secs)}
+            onfocus={(e) => {
+              longEdit = (e.target as HTMLInputElement).value;
+              (e.target as HTMLInputElement).select();
+            }}
+            oninput={(e) => {
+              longEdit = (e.target as HTMLInputElement).value;
+            }}
+            onblur={async (e) => {
               await commitBadge(
                 longEdit,
                 $settings.time_long_break_secs,
@@ -246,130 +237,165 @@
                 e.target as HTMLInputElement
               );
               longEdit = null;
-              (e.target as HTMLInputElement).blur();
-            } else if (e.key === 'Escape') {
-              longEdit = null;
-              (e.target as HTMLInputElement).value = formatMMSS($settings.time_long_break_secs);
-              (e.target as HTMLInputElement).blur();
-            }
-          }}
-        />
+            }}
+            onkeydown={async (e) => {
+              if (e.key === 'Enter') {
+                await commitBadge(
+                  longEdit,
+                  $settings.time_long_break_secs,
+                  'time_long_break_secs',
+                  e.target as HTMLInputElement
+                );
+                longEdit = null;
+                (e.target as HTMLInputElement).blur();
+              } else if (e.key === 'Escape') {
+                longEdit = null;
+                (e.target as HTMLInputElement).value = formatMMSS($settings.time_long_break_secs);
+                (e.target as HTMLInputElement).blur();
+              }
+            }}
+          />
+        </div>
+        <div class="slider-wrap">
+          <input
+            type="range"
+            min="1"
+            max="90"
+            step="1"
+            value={longMins}
+            class="slider"
+            oninput={(e) =>
+              handleChange('time_long_break_secs', (e.target as HTMLInputElement).valueAsNumber * 60)}
+          />
+          <div class="bar bar--long" style="width: {barWidth(longMins, 1, 90)}"></div>
+        </div>
       </div>
-      <div class="slider-wrap">
-        <input
-          type="range"
-          min="1"
-          max="90"
-          step="1"
-          value={longMins}
-          class="slider"
-          oninput={(e) =>
-            handleChange('time_long_break_secs', (e.target as HTMLInputElement).valueAsNumber * 60)}
-        />
-        <div class="bar bar--long" style="width: {barWidth(longMins, 1, 90)}"></div>
-      </div>
-    </div>
 
-    <!-- Rounds -->
-    <div class="slider-row">
-      <div class="slider-meta">
-        <span class="slider-label">{m.timer_slider_rounds()}</span>
-        <span class="slider-value slider-value--static">{rounds}</span>
-      </div>
-      <div class="slider-wrap">
-        <input
-          type="range"
-          min="1"
-          max={MAX_ROUNDS}
-          step="1"
-          value={rounds}
-          class="slider"
-          oninput={(e) => handleChange('work_rounds', (e.target as HTMLInputElement).valueAsNumber)}
-        />
-        <div class="bar bar--rounds" style="width: {barWidth(rounds, 1, MAX_ROUNDS)}"></div>
+      <!-- Rounds -->
+      <div class="slider-row">
+        <div class="slider-meta">
+          <span class="slider-label">{m.timer_slider_rounds()}</span>
+          <span class="slider-value slider-value--static">{rounds}</span>
+        </div>
+        <div class="slider-wrap">
+          <input
+            type="range"
+            min="1"
+            max={MAX_ROUNDS}
+            step="1"
+            value={rounds}
+            class="slider"
+            oninput={(e) => handleChange('work_rounds', (e.target as HTMLInputElement).valueAsNumber)}
+          />
+          <div class="bar bar--rounds" style="width: {barWidth(rounds, 1, MAX_ROUNDS)}"></div>
+        </div>
       </div>
     </div>
   </div>
 
-  <SettingsToggle
-    label={m.timer_toggle_auto_start_work()}
-    description={m.timer_toggle_auto_start_work_desc()}
-    checked={$settings.auto_start_work}
-    onclick={() => toggle('auto_start_work', $settings.auto_start_work)}
-  />
-  <SettingsToggle
-    label={m.timer_toggle_auto_start_break()}
-    description={m.timer_toggle_auto_start_break_desc()}
-    checked={$settings.auto_start_break}
-    onclick={() => toggle('auto_start_break', $settings.auto_start_break)}
-  />
-  <SettingsToggle
-    label={m.timer_toggle_countdown()}
-    description={m.timer_toggle_countdown_desc()}
-    checked={$settings.dial_countdown}
-    onclick={() => toggle('dial_countdown', $settings.dial_countdown)}
-  />
+  <!-- Automation & Display -->
+  <div class="group-heading">Automation & Display</div>
+  <div class="group-card">
+    <SettingsToggle
+      label={m.timer_toggle_auto_start_work()}
+      description={m.timer_toggle_auto_start_work_desc()}
+      checked={$settings.auto_start_work}
+      onclick={() => toggle('auto_start_work', $settings.auto_start_work)}
+    />
+    <SettingsToggle
+      label={m.timer_toggle_auto_start_break()}
+      description={m.timer_toggle_auto_start_break_desc()}
+      checked={$settings.auto_start_break}
+      onclick={() => toggle('auto_start_break', $settings.auto_start_break)}
+    />
+    <SettingsToggle
+      label={m.timer_toggle_countdown()}
+      description={m.timer_toggle_countdown_desc()}
+      checked={$settings.dial_countdown}
+      onclick={() => toggle('dial_countdown', $settings.dial_countdown)}
+    />
+  </div>
 </div>
 
 <style>
   .section {
     display: flex;
     flex-direction: column;
+    padding-bottom: 24px;
+  }
+
+  .group-heading {
+    font-size: 0.74rem;
+    font-weight: 500;
+    color: rgba(255, 255, 255, 0.55);
+    margin: 16px 20px 6px;
+    letter-spacing: -0.01em;
+  }
+
+  .group-card {
+    margin: 0 20px 4px;
+    background: rgba(255, 255, 255, 0.035);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border: 1px solid rgba(255, 255, 255, 0.07);
+    border-radius: 10px;
+    overflow: hidden;
   }
 
   .slider-row {
-    padding: 14px 20px;
-    border-bottom: 1px solid var(--color-separator);
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    padding: 12px 16px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  }
+
+  .slider-row:last-child {
+    border-bottom: none;
   }
 
   .slider-meta {
     display: flex;
+    align-items: center;
     justify-content: space-between;
-    align-items: baseline;
-    margin-bottom: 10px;
   }
 
   .slider-label {
-    font-size: 0.85rem;
-    color: var(--color-foreground);
-    letter-spacing: 0.02em;
+    font-size: 0.82rem;
+    font-weight: 400;
+    color: rgba(255, 255, 255, 0.85);
   }
 
   .slider-value {
-    font-size: 0.8rem;
-    font-family: monospace;
-    color: var(--color-foreground-darker, var(--color-foreground));
-    background: var(--color-hover);
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Rounded", monospace;
+    font-size: 0.78rem;
+    font-weight: 500;
+    color: #ffffff;
+    background: rgba(0, 0, 0, 0.25);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 6px;
     padding: 2px 8px;
-    border-radius: 3px;
-    /* Override the global border-box reset so width refers to content area only,
-       matching how the original <span> badge was sized. */
-    box-sizing: content-box;
-    width: 5ch;
-    border: 1px solid transparent;
+    width: 52px;
+    text-align: center;
     outline: none;
-    text-align: right;
-    cursor: text;
-    transition:
-      border-color 0.15s,
-      background 0.15s;
+    transition: all 0.15s ease;
   }
 
   .slider-value:focus {
-    border-color: color-mix(in oklch, var(--color-foreground) 35%, transparent);
-    background: color-mix(in oklch, var(--color-hover) 60%, var(--color-background));
+    border-color: rgba(255, 255, 255, 0.3);
+    background: rgba(0, 0, 0, 0.35);
   }
 
-  /* Static variant used for the Rounds row (no keyboard entry). */
   .slider-value--static {
     cursor: default;
     pointer-events: none;
     width: auto;
+    min-width: 28px;
   }
 
   .slider-wrap {
     position: relative;
-    height: 20px;
+    height: 18px;
     display: flex;
     align-items: center;
   }
@@ -381,7 +407,7 @@
     -webkit-appearance: none;
     appearance: none;
     height: 4px;
-    background: color-mix(in oklch, var(--color-foreground) 14%, transparent);
+    background: rgba(255, 255, 255, 0.12);
     border-radius: 2px;
     outline: none;
     cursor: pointer;
@@ -389,20 +415,17 @@
 
   .slider::-webkit-slider-thumb {
     -webkit-appearance: none;
-    width: 14px;
-    height: 14px;
+    width: 16px;
+    height: 16px;
     border-radius: 50%;
-    background: var(--color-foreground);
+    background: #ffffff;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.35);
     cursor: pointer;
+    transition: transform 0.15s ease;
   }
 
-  .slider::-moz-range-thumb {
-    width: 14px;
-    height: 14px;
-    border-radius: 50%;
-    background: var(--color-foreground);
-    cursor: pointer;
-    border: none;
+  .slider::-webkit-slider-thumb:hover {
+    transform: scale(1.1);
   }
 
   .bar {
@@ -425,14 +448,14 @@
     background: var(--color-long-round);
   }
   .bar--rounds {
-    background: var(--color-foreground-darker, var(--color-foreground));
+    background: rgba(255, 255, 255, 0.6);
   }
 
   .break-body {
     transition: opacity 0.15s;
   }
   .break-body.disabled {
-    opacity: 0.4;
+    opacity: 0.35;
     pointer-events: none;
   }
 </style>

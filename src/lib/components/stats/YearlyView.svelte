@@ -333,13 +333,18 @@
     opacity: 0.7;
   }
 
-  /* ── Heatmap ──────────────────────────────────────────────── */
+  /* ── Heatmap Inset Glass Card ──────────────────────────────── */
   .heatmap-section {
     flex: 1;
     display: flex;
     align-items: center;
     justify-content: center;
-    padding: 16px 24px 8px;
+    padding: 20px 24px;
+    background: rgba(255, 255, 255, 0.035);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border: 1px solid rgba(255, 255, 255, 0.07);
+    border-radius: 12px;
     overflow: hidden;
   }
 
@@ -481,22 +486,25 @@
     border-radius: 2px;
   }
 
-  /* ── Lifetime totals ─────────────────────────────────────── */
+  /* ── Lifetime totals Inset Cards ─────────────────────────── */
   .totals {
-    display: flex;
-    align-items: stretch;
-    border-top: 1px solid var(--color-separator);
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 12px;
     flex-shrink: 0;
+    margin-top: 16px;
   }
 
   .total-card {
-    flex: 1;
     display: flex;
     flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    gap: 4px;
-    padding: 18px 24px;
+    gap: 8px;
+    padding: 16px 20px;
+    background: rgba(255, 255, 255, 0.035);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border: 1px solid rgba(255, 255, 255, 0.07);
+    border-radius: 12px;
     animation: card-rise 0.35s cubic-bezier(0.22, 1, 0.36, 1) both;
     animation-delay: var(--delay, 0ms);
   }
@@ -513,23 +521,23 @@
   }
 
   .total-label {
-    font-size: 0.62rem;
-    font-weight: 600;
-    letter-spacing: 0.1em;
-    text-transform: uppercase;
-    color: var(--color-foreground-darker);
+    font-size: 0.74rem;
+    font-weight: 500;
+    color: rgba(255, 255, 255, 0.55);
+    letter-spacing: -0.01em;
   }
 
   .total-value {
-    font-size: 1.8rem;
-    font-weight: 700;
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Rounded", system-ui, sans-serif;
+    font-size: 1.95rem;
+    font-weight: 250;
     font-variant-numeric: tabular-nums;
-    letter-spacing: -0.02em;
-    color: var(--color-foreground);
+    letter-spacing: -0.03em;
+    color: #ffffff;
     line-height: 1;
     display: flex;
     align-items: baseline;
-    gap: 4px;
+    gap: 6px;
   }
 
   .total-unit {
@@ -538,12 +546,7 @@
     color: var(--color-foreground-darker);
   }
 
-  .total-divider {
-    width: 1px;
-    background: var(--color-separator);
-    align-self: stretch;
-    margin: 10px 0;
-  }
+  .total-divider { display: none; }
 
   /* ── Empty overlay ───────────────────────────────────────── */
   .empty-overlay {
