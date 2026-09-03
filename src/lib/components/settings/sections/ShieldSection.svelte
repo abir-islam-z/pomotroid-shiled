@@ -244,13 +244,17 @@
   .section {
     display: flex;
     flex-direction: column;
-    gap: 20px;
-    padding-bottom: 24px;
+    gap: 16px;
+    padding: 16px 20px 28px;
   }
 
   .group {
     display: flex;
     flex-direction: column;
+    background: rgba(255, 255, 255, 0.03); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
+    border: 1px solid rgba(255, 255, 255, 0.07);
+    border-radius: 10px;
+    overflow: hidden;
   }
 
   .group-header {
@@ -278,7 +282,7 @@
     background: none;
     border: none;
     font-size: 0.72rem;
-    color: var(--color-accent);
+    color: #ffffff;
     cursor: pointer;
     text-decoration: underline;
     opacity: 0.85;
@@ -297,7 +301,7 @@
   .add-row input {
     flex: 1;
     background: var(--color-background-darker, rgba(0, 0, 0, 0.15));
-    border: 1px solid var(--color-separator);
+    border: 1px solid rgba(255, 255, 255, 0.07);
     border-radius: 6px;
     color: var(--color-foreground);
     padding: 7px 12px;
@@ -306,7 +310,7 @@
   }
 
   .add-row input:focus {
-    border-color: var(--color-accent);
+    border-color: #ffffff;
   }
 
   .btn-add {
@@ -334,7 +338,7 @@
     align-items: center;
     gap: 6px;
     background: color-mix(in oklch, var(--color-foreground) 8%, transparent);
-    border: 1px solid var(--color-separator);
+    border: 1px solid rgba(255, 255, 255, 0.07);
     border-radius: 12px;
     padding: 4px 10px;
     font-size: 0.75rem;
@@ -364,11 +368,12 @@
   }
 
   .test-group {
-    padding: 12px 20px;
+    padding: 14px 18px;
     gap: 10px;
-    background: color-mix(in oklch, var(--color-foreground) 4%, transparent);
-    border-radius: 8px;
-    margin: 0 20px;
+    background: rgba(255, 255, 255, 0.03); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
+    border: 1px solid rgba(255, 255, 255, 0.07);
+    border-radius: 10px;
+    margin: 0;
   }
 
   .test-desc {
@@ -378,9 +383,9 @@
   }
 
   .btn-test {
-    background: color-mix(in oklch, var(--color-accent) 15%, transparent);
-    border: 1px solid var(--color-accent);
-    color: var(--color-accent);
+    background: rgba(255, 255, 255, 0.08);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    color: #ffffff;
     border-radius: 6px;
     padding: 8px 16px;
     font-size: 0.8rem;

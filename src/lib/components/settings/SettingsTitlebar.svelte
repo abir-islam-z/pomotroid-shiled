@@ -9,29 +9,12 @@
 </script>
 
 <nav class="titlebar" class:macos={isMac} data-tauri-drag-region>
-  <h1 class="title">{m.settings_title()}</h1>
-  <!-- Hidden on macOS; the native traffic light close button handles this. -->
+  <span class="title">Settings</span>
   {#if !isMac}
     <button class="btn-close" onclick={close} aria-label="Close">
       <svg width="12" height="12" viewBox="0 0 12 12">
-        <line
-          x1="1"
-          y1="1"
-          x2="11"
-          y2="11"
-          stroke="currentColor"
-          stroke-width="1.5"
-          stroke-linecap="round"
-        />
-        <line
-          x1="11"
-          y1="1"
-          x2="1"
-          y2="11"
-          stroke="currentColor"
-          stroke-width="1.5"
-          stroke-linecap="round"
-        />
+        <line x1="1" y1="1" x2="11" y2="11" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+        <line x1="11" y1="1" x2="1" y2="11" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
       </svg>
     </button>
   {/if}
@@ -46,20 +29,18 @@
     justify-content: center;
     position: relative;
     flex-shrink: 0;
-    border-bottom: 1px solid var(--color-separator);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
   }
 
-  /* Shift the centered title right of the traffic lights on macOS. */
   .macos {
     padding-left: 72px;
   }
 
   .title {
-    font-size: 0.8rem;
-    font-weight: 600;
-    letter-spacing: 0.06em;
-    text-transform: uppercase;
-    color: var(--color-foreground-darker, var(--color-foreground));
+    font-size: 0.82rem;
+    font-weight: 500;
+    letter-spacing: -0.01em;
+    color: rgba(255, 255, 255, 0.7);
     pointer-events: none;
   }
 
@@ -69,20 +50,18 @@
     background: none;
     border: none;
     cursor: pointer;
-    color: var(--color-foreground-darker, var(--color-foreground));
+    color: var(--color-foreground-darker);
     display: flex;
     align-items: center;
     justify-content: center;
     width: 28px;
     height: 28px;
     border-radius: 4px;
-    transition:
-      color 0.15s,
-      background 0.15s;
+    transition: all 0.15s;
   }
 
   .btn-close:hover {
-    color: var(--color-background);
-    background: var(--color-focus-round);
+    color: #ffffff;
+    background: #FF453A;
   }
 </style>

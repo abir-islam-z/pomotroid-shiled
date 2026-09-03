@@ -1,53 +1,31 @@
-/* Global CSS — CSS custom properties for theming.
-   The active theme overrides these values at runtime via Tauri IPC. */
-
-/* ---------------------------------------------------------------------------
-   Embedded variable fonts
-   font-display: block — app is offline-first, no FOUT risk
-   --------------------------------------------------------------------------- */
-
-@font-face {
-  font-family: 'Mona Sans';
-  src: url('/fonts/MonaSansVF.woff2') format('woff2');
-  font-weight: 200 900;
-  font-stretch: 75% 125%;
-  font-style: normal;
-  font-display: block;
-}
-
-@font-face {
-  font-family: 'Mona Sans Mono';
-  src: url('/fonts/MonaSansMonoVF.woff2') format('woff2');
-  font-weight: 200 900;
-  font-stretch: 75% 125%;
-  font-display: block;
-}
+/* Global CSS — Native macOS Sequoia / Sonoma Glassmorphic Design System */
 
 :root {
-  /* Theme colors (defaults; overridden by the active theme at runtime) */
-  --color-long-round: #c75000;
-  --color-short-round: #417505;
-  --color-focus-round: #b01c2e;
-  --color-background: #2f384b;
-  --color-background-light: #3e4a5d;
-  --color-foreground: #d7e1f4;
-  --color-foreground-darker: #a3aec4;
-  --color-accent: #ff6347;
+  /* Classy, understated Apple System Palette (Non-flashy, calm tones) */
+  --color-focus-round: #FF5A52;       /* Apple System Coral (calm focus) */
+  --color-short-round: #34C759;       /* Apple System Sage / Mint */
+  --color-long-round: #5E5CE6;        /* Apple System Soft Indigo */
+  --color-background: #151821;        /* Deep Obsidian Glass Slate */
+  --color-background-light: #212534;  /* Translucent Surface Light */
+  --color-foreground: #F2F4F8;        /* Clean Pearl Text */
+  --color-foreground-darker: #8C94A6; /* Refined Muted Text */
+  --color-accent: #FF5A52;            /* Primary Soft Accent */
 
-  /* Derived chrome tokens — adapt automatically between dark and light themes.
-     color-mix with transparent produces the foreground color at N% opacity,
-     which creates subtle dark overlays on light themes and light overlays on
-     dark themes without any hardcoded rgba(255,255,255,...) values. */
-  --color-separator: color-mix(in oklch, var(--color-foreground) 8%, transparent);
-  --color-hover: color-mix(in oklch, var(--color-foreground) 10%, transparent);
+  /* Glassmorphic tokens */
+  --color-separator: rgba(255, 255, 255, 0.08);
+  --color-hover: rgba(255, 255, 255, 0.07);
+  --color-glass: rgba(255, 255, 255, 0.04);
+  --color-glass-border: rgba(255, 255, 255, 0.1);
+  --color-glass-border-focus: rgba(255, 255, 255, 0.2);
 
-  /* Transition timing tokens — components reference these for consistency */
-  --transition-default: 0.2s ease;
+  /* Apple SF Pro font stacks */
+  --font-system: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "SF Pro Rounded", system-ui, sans-serif;
+  --font-mono: "SF Mono", "SF Pro Rounded", "Roboto Mono", Menlo, monospace;
+
+  /* Transitions */
+  --transition-default: 0.22s cubic-bezier(0.16, 1, 0.3, 1);
   --transition-snappy: 0.12s cubic-bezier(0.4, 0, 0.2, 1);
-  --transition-slow: 0.35s ease;
-
-  /* Optical sizing — adapts letterforms to font-size automatically */
-  font-optical-sizing: auto;
+  --transition-slow: 0.35s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 *,
@@ -63,20 +41,51 @@ body {
   height: 100%;
   width: 100%;
   overflow: hidden;
-  font-family: 'Mona Sans', system-ui, sans-serif;
-  background-color: var(--color-background);
+  font-family: var(--font-system);
+  background-color: transparent;
   color: var(--color-foreground);
   user-select: none;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
 /* ---------------------------------------------------------------------------
-   Keyframes (available to all scoped component stylesheets)
+   Native macOS Overlay Scrollbars
+   --------------------------------------------------------------------------- */
+
+::-webkit-scrollbar {
+  width: 5px;
+  height: 5px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.15);
+  border-radius: 9999px;
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.28);
+}
+
+::selection {
+  background: rgba(255, 90, 82, 0.3);
+  color: #ffffff;
+}
+
+/* ---------------------------------------------------------------------------
+   Keyframes
    --------------------------------------------------------------------------- */
 
 @keyframes app-fade-in {
   from {
     opacity: 0;
-    transform: scale(0.98);
+    transform: scale(0.985);
   }
   to {
     opacity: 1;
@@ -87,7 +96,7 @@ body {
 @keyframes icon-fade-in {
   from {
     opacity: 0;
-    transform: scale(0.8);
+    transform: scale(0.85);
   }
   to {
     opacity: 1;

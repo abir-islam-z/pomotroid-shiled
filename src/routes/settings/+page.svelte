@@ -44,7 +44,6 @@
   onMount(() => {
     const cleanups: UnlistenFn[] = [];
 
-    // Mount local keyboard shortcut handler.
     const shortcutHandler = createLocalShortcutHandler({
       getSettings: () => $settings,
       getVolume: () => localVolume,
@@ -69,7 +68,6 @@
         settings.set(s);
         localVolume = s.volume;
 
-        // Apply the stored locale on mount.
         setLocale(s.language);
         await info(`[settings] settings loaded, locale=${s.language}`);
 
@@ -79,14 +77,12 @@
         if (activeTheme) applyTheme(activeTheme);
         await info(`[settings] initialized, theme=${activeTheme?.name ?? 'none'}`);
 
-        // Show the window now that the theme is applied (avoids white flash)
         await getCurrentWebviewWindow().show();
       } catch (e) {
         await logError(`[settings] initialization failed: ${e}`);
         throw e;
       }
 
-      // Live OS color scheme changes — re-resolve only in auto mode.
       const mq = window.matchMedia('(prefers-color-scheme: dark)');
       const mqListener = async (e: MediaQueryListEvent) => {
         if ($settings.theme_mode !== 'auto') return;
@@ -138,7 +134,7 @@
   <SettingsTitlebar />
 
   <div class="body">
-    <!-- Left sidebar navigation -->
+    <!-- Left sidebar navigation with subtle Apple SF Symbols -->
     <aside class="sidebar">
       <nav>
         {#each SECTIONS as section}
@@ -149,7 +145,52 @@
               active = section.id;
             }}
           >
-            {section.label()}
+            <span class="nav-icon">
+              {#if section.id === 'timer'}
+                <!-- Clock -->
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <circle cx="12" cy="12" r="10"/>
+                  <polyline points="12 6 12 12 16 14"/>
+                </svg>
+              {:else if section.id === 'appearance'}
+                <!-- Appearance / Sun-Display -->
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <circle cx="12" cy="12" r="4"/>
+                  <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/>
+                </svg>
+              {:else if section.id === 'notifications'}
+                <!-- Bell -->
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/>
+                  <path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/>
+                </svg>
+              {:else if section.id === 'shortcuts'}
+                <!-- Keyboard -->
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <rect width="20" height="16" x="2" y="4" rx="2"/>
+                  <path d="M6 8h.01M10 8h.01M14 8h.01M18 8h.01M8 12h8"/>
+                </svg>
+              {:else if section.id === 'shield'}
+                <!-- Shield -->
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+                </svg>
+              {:else if section.id === 'system'}
+                <!-- Gear / System -->
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <circle cx="12" cy="12" r="3"/>
+                  <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+                </svg>
+              {:else}
+                <!-- Info -->
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <circle cx="12" cy="12" r="10"/>
+                  <line x1="12" y1="16" x2="12" y2="12"/>
+                  <line x1="12" y1="8" x2="12.01" y2="8"/>
+                </svg>
+              {/if}
+            </span>
+            <span class="nav-label">{section.label()}</span>
           </button>
         {/each}
       </nav>
@@ -183,8 +224,12 @@
     display: flex;
     flex-direction: column;
     overflow: hidden;
-    background: var(--color-background);
-    animation: app-fade-in 0.2s ease both;
+    background: rgba(22, 25, 36, 0.88);
+    backdrop-filter: blur(48px) saturate(180%);
+    -webkit-backdrop-filter: blur(48px) saturate(180%);
+    border: none;
+    box-shadow: none;
+    animation: app-fade-in 0.25s var(--transition-default) both;
   }
 
   .body {
@@ -194,44 +239,71 @@
     overflow: hidden;
   }
 
-  /* Sidebar */
+  /* macOS System Settings Inset Sidebar */
   .sidebar {
-    width: 180px;
+    width: 200px;
     flex-shrink: 0;
-    border-right: 1px solid var(--color-separator);
-    background: var(--color-background-light);
+    border-right: 1px solid rgba(255, 255, 255, 0.07);
+    background: rgba(255, 255, 255, 0.02);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
     overflow-y: auto;
-    padding: 8px 0;
+    padding: 10px 8px;
   }
 
   .nav-item {
-    display: block;
+    display: flex;
+    align-items: center;
+    gap: 10px;
     width: 100%;
-    padding: 9px 16px;
-    background: none;
+    padding: 7px 10px;
+    margin-bottom: 2px;
+    background: transparent;
     border: none;
-    border-left: 3px solid transparent;
+    border-radius: 6px;
     text-align: left;
-    font-size: 0.85rem;
-    letter-spacing: 0.03em;
-    color: var(--color-foreground-darker, var(--color-foreground));
+    font-size: 0.82rem;
+    font-weight: 400;
+    color: rgba(255, 255, 255, 0.65);
     cursor: pointer;
-    transition:
-      color 0.12s,
-      background 0.12s,
-      border-color 0.12s;
+    transition: all 0.15s ease;
+  }
+
+  .nav-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    color: rgba(255, 255, 255, 0.55);
+    transition: color 0.15s ease;
+  }
+
+  .nav-label {
+    flex: 1;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
 
   .nav-item:hover {
-    color: var(--color-foreground);
-    background: var(--color-hover);
+    color: rgba(255, 255, 255, 0.9);
+    background: rgba(255, 255, 255, 0.05);
   }
 
+  .nav-item:hover .nav-icon {
+    color: rgba(255, 255, 255, 0.85);
+  }
+
+  /* Authentic macOS Subtle Neutral Selection */
   .nav-item.active {
-    color: var(--color-foreground);
-    border-left-color: var(--color-accent);
-    background: var(--color-hover);
+    color: #ffffff;
+    background: rgba(255, 255, 255, 0.12);
     font-weight: 500;
+    box-shadow: none;
+  }
+
+  .nav-item.active .nav-icon {
+    color: #ffffff;
   }
 
   /* Content */

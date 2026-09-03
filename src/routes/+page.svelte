@@ -193,7 +193,12 @@
     display: flex;
     flex-direction: column;
     overflow: hidden;
-    animation: app-fade-in 0.4s var(--transition-slow) both;
+    background: rgba(21, 24, 34, 0.85);
+    backdrop-filter: blur(44px) saturate(190%);
+    -webkit-backdrop-filter: blur(44px) saturate(190%);
+    border: none;
+    box-shadow: none;
+    animation: app-fade-in 0.35s var(--transition-default) both;
   }
 
   main {

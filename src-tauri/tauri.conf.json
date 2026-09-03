@@ -21,8 +21,15 @@
         "decorations": true,
         "titleBarStyle": "Overlay",
         "hiddenTitle": true,
-        "backgroundColor": "#2F384B",
-        "visible": false
+        "visible": false,
+        "transparent": true,
+        "windowEffects": {
+          "effects": [
+            "hudWindow"
+          ],
+          "state": "active",
+          "radius": 18
+        }
       }
     ],
     "security": {

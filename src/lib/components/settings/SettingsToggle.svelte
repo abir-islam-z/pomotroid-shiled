@@ -65,44 +65,37 @@
     opacity: 0.7;
   }
 
-  /* Pill toggle */
+  /* Native macOS Pill toggle */
   .toggle {
     position: relative;
-    width: 34px;
-    height: 18px;
-    border-radius: 9px;
-    /* Use a foreground-tinted track so it's visible on both dark and light themes
-       (rgba(255,255,255,0.15) vanishes on light backgrounds). */
+    width: 38px;
+    height: 22px;
+    border-radius: 11px;
     background: color-mix(in oklch, var(--color-foreground) 22%, transparent);
     flex-shrink: 0;
-    transition: background 0.2s;
+    transition: background 0.22s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.22s ease;
   }
 
   .toggle::after {
     content: '';
     position: absolute;
-    width: 12px;
-    height: 12px;
+    width: 18px;
+    height: 18px;
     border-radius: 50%;
-    /* OFF state: use a muted foreground tone so the thumb is visible against
-       the subtle foreground-tinted track without being overly bright. */
-    background: var(--color-foreground-darker, var(--color-foreground));
-    top: 3px;
-    left: 3px;
-    transition:
-      transform 0.2s,
-      background 0.2s;
+    background: #ffffff;
+    top: 2px;
+    left: 2px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.35);
+    transition: transform 0.22s cubic-bezier(0.16, 1, 0.3, 1);
   }
 
   .toggle.on {
     background: var(--color-accent);
+    box-shadow: 0 0 10px color-mix(in oklch, var(--color-accent) 35%, transparent);
   }
 
   .toggle.on::after {
     transform: translateX(16px);
-    /* ON state: the background color is always chosen by the theme designer to
-       contrast with the accent, so it reads cleanly and stays within the palette.
-       e.g. dark navy on teal (Pomotroid), dark charcoal on yellow (Gruvbox). */
-    background: var(--color-background);
+    background: #ffffff;
   }
 </style>

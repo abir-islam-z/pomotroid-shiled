@@ -1,5 +1,5 @@
 <script lang="ts">
-  // Round counter, reset/skip buttons, and volume slider.
+  // Round counter, reset button, and volume slider wrapped in a macOS glass pill.
   import type { TimerState } from '$lib/types';
   import { timerReset, setSetting } from '$lib/ipc';
   import { settings } from '$lib/stores/settings';
@@ -14,14 +14,11 @@
 
   let showVolume = $state(false);
 
-  // Local volume for immediate slider feedback — avoids waiting for the
-  // async IPC round-trip before the thumb visually moves.
   let localVolume = $state($settings.volume);
   $effect(() => {
     localVolume = $settings.volume;
   });
 
-  // Remembered pre-mute level so the button can restore it on unmute.
   let premuteVolume = $state<number | null>(null);
 
   function handleVolumeChange(e: Event) {
@@ -44,7 +41,7 @@
   }
 </script>
 
-<!-- Round counter: X/Y when long breaks are active; labelled session count otherwise -->
+<!-- Round counter -->
 <Tooltip
   text={$settings.long_breaks_enabled
     ? m.tooltip_round_counter()
@@ -52,7 +49,7 @@
 >
   <span class="rounds">
     {#if $settings.long_breaks_enabled}
-      {snap.work_round_number} &nbsp;|&nbsp; {snap.work_rounds_total}
+      {snap.work_round_number} &nbsp;/&nbsp; {snap.work_rounds_total}
     {:else}
       {m.timer_session_round({ n: snap.session_work_count })}
     {/if}
@@ -62,6 +59,10 @@
 <!-- Reset -->
 <Tooltip text={m.tooltip_reset()}>
   <button class="btn-text" onclick={timerReset} aria-label={m.timer_reset()}>
+    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="margin-right: 3px;">
+      <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/>
+      <path d="M3 3v5h5"/>
+    </svg>
     {m.timer_reset()}
   </button>
 </Tooltip>
@@ -78,37 +79,18 @@
       onmouseleave={() => (showVolume = false)}
     >
       {#if localVolume === 0}
-        <svg width="16" height="16" viewBox="0 0 16 16">
-          <polygon points="1,5 5,5 10,1 10,15 5,11 1,11" fill="currentColor" />
-          <line
-            x1="12"
-            y1="5"
-            x2="16"
-            y2="11"
-            stroke="currentColor"
-            stroke-width="1.5"
-            stroke-linecap="round"
-          />
-          <line
-            x1="16"
-            y1="5"
-            x2="12"
-            y2="11"
-            stroke="currentColor"
-            stroke-width="1.5"
-            stroke-linecap="round"
-          />
+        <!-- Mute Icon -->
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/>
+          <line x1="23" y1="9" x2="17" y2="15"/>
+          <line x1="17" y1="9" x2="23" y2="15"/>
         </svg>
       {:else}
-        <svg width="16" height="16" viewBox="0 0 16 16">
-          <polygon points="1,5 5,5 10,1 10,15 5,11 1,11" fill="currentColor" />
-          <path
-            d="M12,5 Q15,8 12,11"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="1.5"
-            stroke-linecap="round"
-          />
+        <!-- Speaker Icon -->
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/>
+          <path d="M15.54 8.46a5 5 0 0 1 0 7.07"/>
+          <path d="M19.07 4.93a10 10 0 0 1 0 14.14"/>
         </svg>
       {/if}
     </button>
@@ -132,50 +114,51 @@
 
 <style>
   .rounds {
-    font-size: 0.8rem;
-    color: var(--color-foreground-darker, var(--color-foreground));
-    min-width: 48px;
+    font-size: 0.76rem;
+    font-weight: 500;
+    color: var(--color-foreground-darker);
+    min-width: 44px;
     text-align: center;
     cursor: default;
+    letter-spacing: 0.04em;
   }
 
   .btn-text {
     background: none;
     border: none;
     cursor: pointer;
-    color: var(--color-foreground-darker, var(--color-foreground));
-    font-size: 0.8rem;
-    padding: 4px 8px;
-    border-radius: 4px;
-    transition:
-      color 0.15s,
-      background 0.15s;
+    color: var(--color-foreground-darker);
+    font-size: 0.76rem;
+    font-weight: 500;
+    padding: 3px 8px;
+    border-radius: 6px;
+    display: inline-flex;
+    align-items: center;
+    transition: all 0.15s ease;
   }
 
   .btn-text:hover {
     color: var(--color-foreground);
-    background: var(--color-hover);
+    background: rgba(255, 255, 255, 0.08);
   }
 
   .btn-icon {
     background: none;
     border: none;
     cursor: pointer;
-    color: var(--color-foreground-darker, var(--color-foreground));
+    color: var(--color-foreground-darker);
     display: flex;
     align-items: center;
     justify-content: center;
     width: 28px;
     height: 28px;
-    border-radius: 4px;
-    transition:
-      color 0.15s,
-      background 0.15s;
+    border-radius: 6px;
+    transition: all 0.15s ease;
   }
 
   .btn-icon:hover {
     color: var(--color-foreground);
-    background: var(--color-hover);
+    background: rgba(255, 255, 255, 0.08);
   }
 
   .volume-wrapper {
@@ -190,24 +173,24 @@
     bottom: 100%;
     left: 50%;
     transform: translateX(-50%);
-    padding: 8px;
-    background: var(--color-background-light);
-    border-radius: 6px;
+    padding: 10px 8px;
+    background: rgba(26, 30, 42, 0.92);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 10px;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
     display: flex;
     align-items: center;
     justify-content: center;
     z-index: 10;
-    /* Fixed size to contain the rotated slider without layout overflow. */
-    width: 36px;
-    height: 100px;
+    width: 38px;
+    height: 110px;
+    margin-bottom: 6px;
   }
 
   .volume-slider {
-    /* Rotate a normal horizontal slider so it appears vertical.
-       Unlike writing-mode, transform preserves correct pointer-event
-       mapping on WebKit: dragging up increases value, dragging down
-       decreases it. */
-    width: 80px;
+    width: 86px;
     transform: rotate(-90deg);
     cursor: pointer;
     accent-color: var(--color-accent);

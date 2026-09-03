@@ -1,5 +1,5 @@
 <script lang="ts">
-  // Displays the remaining time (MM:SS).
+  // Displays the remaining time (MM:SS) in Apple Watch / SF Pro Rounded light numerals.
   import type { TimerState } from '$lib/types';
 
   interface Props {
@@ -20,7 +20,6 @@
 
 <style>
   .display {
-    /* Fill the dial-stack and flex-center the time. */
     position: absolute;
     inset: 0;
     display: flex;
@@ -30,11 +29,12 @@
   }
 
   .time {
-    font-family: 'Mona Sans Mono', monospace;
-    font-size: 2.8rem;
-    font-weight: 300;
-    font-stretch: 85%;
-    letter-spacing: -0.02em;
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Rounded", "SF Pro Display", "SF Mono", "Mona Sans Mono", monospace;
+    font-size: 3.15rem;
+    font-weight: 250;
+    letter-spacing: -0.04em;
     color: var(--color-foreground);
+    font-variant-numeric: tabular-nums;
+    text-shadow: 0 2px 16px rgba(0, 0, 0, 0.35);
   }
 </style>

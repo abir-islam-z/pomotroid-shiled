@@ -23,7 +23,6 @@
   import Tooltip from './Tooltip.svelte';
   import type { UnlistenFn } from '@tauri-apps/api/event';
   import * as m from '$paraglide/messages.js';
-  import { notificationShow } from '$lib/ipc';
 
   interface Props {
     isCompact?: boolean;
@@ -49,7 +48,6 @@
   onMount(() => {
     const cleanups: UnlistenFn[] = [];
 
-    // Async setup: hydrate state and register event listeners.
     (async () => {
       const initial = await getTimerState();
       timerState.set(initial);
@@ -82,91 +80,74 @@
         }),
         await onRoundChange((snap) => {
           timerState.set(snap);
-          if ($settings.notifications_enabled) {
-            let title: string;
-            let body: string;
-            if (snap.round_type === 'work') {
-              const afterBreak =
-                snap.previous_round_type === 'short-break' ||
-                snap.previous_round_type === 'long-break';
-              title = afterBreak ? m.notification_work_title() : m.notification_work_start_title();
-              body = afterBreak ? m.notification_work_body() : m.notification_work_start_body();
-            } else if (snap.round_type === 'short-break') {
-              title = m.notification_short_break_title();
-              body = m.notification_short_break_body();
-            } else {
-              title = m.notification_long_break_title();
-              body = m.notification_long_break_body();
-            }
-            notificationShow(title, body).catch(() => {});
-          }
         }),
-        await onTimerReset((snap) => {
-          timerState.set(snap);
+        await onTimerReset(() => {
+          getTimerState().then((snap) => timerState.set(snap));
         })
       );
     })();
 
     return () => {
-      for (const unlisten of cleanups) unlisten();
+      for (const fn of cleanups) fn();
     };
   });
 </script>
 
-<div class="timer-outer" class:compact={isCompact}>
-  <div class="timer" style="zoom: {uiScale}">
-    <!-- Dial + display stacked (display centered over dial) -->
+<div
+  class="timer-outer"
+  style="--ui-scale: {uiScale}; transform: scale(var(--ui-scale)); transform-origin: top center;"
+>
+  <div class="timer">
     <div class="dial-stack">
       <TimerDial snap={state} countdown={$settings.dial_countdown} />
       <TimerDisplay {state} />
     </div>
 
     {#if !isCompact}
-      <!-- Round type label sits below the dial as a normal flex child so it
-           does not affect the dial-stack height used to centre TimerDisplay. -->
-      <div class="round-label" style="color: {roundColor(state.round_type)}">
+      <!-- Refined Micro-capsule Round Badge -->
+      <div class="round-label" style="color: {roundColor(state.round_type)};">
         {roundLabel(state.round_type)}
       </div>
 
       <div class="controls-wrapper">
-        <!-- Back: restart current round -->
+        <!-- Back: restart current round (Apple Music style rewind) -->
         <Tooltip text={m.tooltip_restart_round()}>
           <button class="btn-side" onclick={timerRestartRound} aria-label="Restart round">
-            <svg width="18" height="18" viewBox="0 0 16 16">
-              <polygon points="15,1 6,8 15,15" fill="currentColor" />
-              <rect x="1" y="1" width="3" height="14" rx="1" fill="currentColor" />
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M12 12.75l7.65 5.1a1 1 0 0 0 1.55-.83V6.98a1 1 0 0 0-1.55-.83L12 11.25V6.98a1 1 0 0 0-1.55-.83L2.8 11.27a1 1 0 0 0 0 1.66l7.65 5.12a1 1 0 0 0 1.55-.83v-4.47z"/>
             </svg>
           </button>
         </Tooltip>
 
-        <!-- Play / Pause — icon fades when state changes -->
+        <!-- Play / Pause — Translucent Apple Glass Button with smooth icon fade -->
         <button
           class="play-pause"
           onclick={timerToggle}
           aria-label={state.is_running ? 'Pause' : 'Play'}
         >
           {#key state.is_running}
-            <span class="icon" in:fade={{ duration: 120 }}>
+            <span class="icon" in:fade={{ duration: 140 }}>
               {#if state.is_running}
-                <svg width="24" height="24" viewBox="0 0 24 24">
-                  <rect x="5" y="3" width="5" height="18" rx="1.5" fill="currentColor" />
-                  <rect x="14" y="3" width="5" height="18" rx="1.5" fill="currentColor" />
+                <!-- Apple Style Smooth Rounded Dual Bars -->
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+                  <rect x="5.5" y="4" width="4.5" height="16" rx="2.25"/>
+                  <rect x="14" y="4" width="4.5" height="16" rx="2.25"/>
                 </svg>
               {:else}
-                <svg width="18" height="18" viewBox="0 0 24 24" style="overflow: visible;">
-                  <polygon points="4,0 28,12 4,24" fill="currentColor" />
+                <!-- Apple Style Smooth Rounded Play Triangle -->
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" style="margin-left: 2px;">
+                  <path d="M7.05 4.45a1.5 1.5 0 0 1 2.27-1.28l11.5 6.64a1.5 1.5 0 0 1 0 2.6l-11.5 6.64a1.5 1.5 0 0 1-2.27-1.28V4.45z"/>
                 </svg>
               {/if}
             </span>
           {/key}
         </button>
 
-        <!-- Skip: advance to next round -->
+        <!-- Skip: advance to next round (Apple Music style fast-forward) -->
         <Tooltip text={m.tooltip_skip()}>
           <button class="btn-side" onclick={timerSkip} aria-label="Skip round">
-            <svg width="18" height="18" viewBox="0 0 16 16">
-              <polygon points="1,1 10,8 1,15" fill="currentColor" />
-              <rect x="12" y="1" width="3" height="14" rx="1" fill="currentColor" />
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M12 11.25L4.35 6.15A1 1 0 0 0 2.8 6.98v10.04a1 1 0 0 0 1.55.83L12 12.75v4.27a1 1 0 0 0 1.55.83l7.65-5.12a1 1 0 0 0 0-1.66l-7.65-5.12a1 1 0 0 0-1.55.83v4.27z"/>
             </svg>
           </button>
         </Tooltip>
@@ -193,7 +174,7 @@
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 16px;
+    gap: 14px;
   }
 
   .dial-stack {
@@ -206,56 +187,68 @@
   .controls-wrapper {
     display: grid;
     grid-template-columns: repeat(3, 1fr);
-    gap: 4px 12px;
+    gap: 4px 14px;
+    align-items: center;
   }
   .controls-wrapper > :global(*) {
     aspect-ratio: 1;
   }
 
   .btn-side {
-    background: none;
-    border: none;
+    background: rgba(255, 255, 255, 0.05);
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+    border: 1px solid rgba(255, 255, 255, 0.09);
     cursor: pointer;
-    color: var(--color-foreground-darker, var(--color-foreground));
+    color: var(--color-foreground-darker);
     display: flex;
     align-items: center;
     justify-content: center;
-    width: 32px;
-    height: 32px;
-    border-radius: 4px;
-    transition:
-      color var(--transition-default),
-      background var(--transition-default);
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
+    transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
   }
 
   .btn-side:hover {
     color: var(--color-foreground);
-    background: var(--color-hover);
+    background: rgba(255, 255, 255, 0.12);
+    border-color: rgba(255, 255, 255, 0.2);
+    transform: scale(1.06);
+  }
+
+  .btn-side:active {
+    transform: scale(0.94);
   }
 
   .play-pause {
-    background: none;
-    border: none;
+    background: rgba(255, 255, 255, 0.08);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border: 1px solid rgba(255, 255, 255, 0.16);
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25), inset 0 1px 0 rgba(255, 255, 255, 0.2);
     cursor: pointer;
     color: var(--color-foreground);
     display: flex;
     align-items: center;
     justify-content: center;
-    width: 48px;
-    height: 48px;
+    width: 52px;
+    height: 52px;
     border-radius: 50%;
-    border: 2px solid var(--color-foreground-darker, var(--color-foreground));
-    transition:
-      color var(--transition-default),
-      border-color var(--transition-default),
-      background var(--transition-default);
-    overflow: hidden; /* clip the fading icon within the circle */
+    transition: all 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+    overflow: hidden;
   }
 
   .play-pause:hover {
-    color: var(--color-accent);
-    border-color: var(--color-accent);
-    background: var(--color-hover);
+    background: rgba(255, 255, 255, 0.15);
+    border-color: rgba(255, 255, 255, 0.3);
+    box-shadow: 0 6px 22px rgba(0, 0, 0, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.3);
+    transform: scale(1.06);
+  }
+
+  .play-pause:active {
+    transform: scale(0.94);
   }
 
   .icon {
@@ -265,11 +258,17 @@
   }
 
   .round-label {
-    font-size: 0.75rem;
-    font-weight: 600;
-    letter-spacing: 0.08em;
+    font-size: 0.68rem;
+    font-weight: 700;
+    letter-spacing: 0.14em;
     text-transform: uppercase;
-    /* Collapse the gap above: the flex gap already provides spacing from the dial. */
-    margin-top: -8px;
+    padding: 3px 12px;
+    border-radius: 20px;
+    background: rgba(255, 255, 255, 0.05);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    margin-top: -6px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.18), inset 0 0.5px 0 rgba(255, 255, 255, 0.1);
   }
 </style>

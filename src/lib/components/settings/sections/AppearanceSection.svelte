@@ -1,93 +1,89 @@
 <script lang="ts">
-  import { onMount } from 'svelte';
-  import type { Theme } from '$lib/types';
   import { settings } from '$lib/stores/settings';
+  import { setSetting } from '$lib/ipc';
+  import type { Theme } from '$lib/types';
+  import { getThemes } from '$lib/ipc';
   import { applyTheme } from '$lib/stores/theme';
-  import { getThemes, setSetting, onThemesChanged } from '$lib/ipc';
   import { resolveThemeName } from '$lib/utils/theme';
-  import type { UnlistenFn } from '@tauri-apps/api/event';
+  import { onMount } from 'svelte';
   import * as m from '$paraglide/messages.js';
 
   let themes = $state<Theme[]>([]);
-  let osDark = $state(window.matchMedia('(prefers-color-scheme: dark)').matches);
-  // Accordion: at most one picker open at a time.
   let openPicker = $state<'light' | 'dark' | null>(null);
 
-  // Light picker is active when mode='light', or mode='auto' and OS is light.
-  let lightIsActive = $derived(
+  onMount(async () => {
+    themes = await getThemes();
+  });
+
+  const osDark = $derived(
+    typeof window !== 'undefined' && window.matchMedia('(prefers-color-scheme: dark)').matches
+  );
+
+  const activeThemeName = $derived(resolveThemeName($settings, osDark));
+  const lightIsActive = $derived(
     $settings.theme_mode === 'light' || ($settings.theme_mode === 'auto' && !osDark)
   );
-  // Dark picker is active when mode='dark', or mode='auto' and OS is dark.
-  let darkIsActive = $derived(
+  const darkIsActive = $derived(
     $settings.theme_mode === 'dark' || ($settings.theme_mode === 'auto' && osDark)
   );
 
-  let selectedLightTheme = $derived(themes.find((t) => t.name === $settings.theme_light));
-  let selectedDarkTheme = $derived(themes.find((t) => t.name === $settings.theme_dark));
+  const selectedLightTheme = $derived(themes.find((t) => t.name === $settings.theme_light));
+  const selectedDarkTheme = $derived(themes.find((t) => t.name === $settings.theme_dark));
 
-  function togglePicker(picker: 'light' | 'dark') {
-    openPicker = openPicker === picker ? null : picker;
-  }
-
-  onMount(() => {
-    const cleanups: UnlistenFn[] = [];
-
-    // Track live OS color scheme changes to update picker highlights.
-    const mq = window.matchMedia('(prefers-color-scheme: dark)');
-    const mqListener = (e: MediaQueryListEvent) => {
-      osDark = e.matches;
-    };
-    mq.addEventListener('change', mqListener);
-    cleanups.push(() => mq.removeEventListener('change', mqListener));
-
-    (async () => {
-      themes = await getThemes();
-      cleanups.push(
-        await onThemesChanged((updated) => {
-          themes = updated;
-        })
-      );
-    })();
-
-    return () => {
-      for (const fn of cleanups) fn();
-    };
-  });
-
-  // Mode selector: save + immediately apply the resolved theme.
-  async function setMode(mode: string) {
-    const resolved = resolveThemeName({ ...$settings, theme_mode: mode }, osDark);
-    const t = themes.find((th) => th.name === resolved);
+  async function setMode(mode: 'auto' | 'light' | 'dark') {
+    const updated = await setSetting('theme_mode', mode);
+    settings.set(updated);
+    const target = resolveThemeName(updated, osDark);
+    const t = themes.find((th) => th.name === target);
     if (t) applyTheme(t);
-    await setSetting('theme_mode', mode);
   }
 
-  // Light picker: save + apply only if light picker is currently active.
   async function selectLight(theme: Theme) {
+    const updated = await setSetting('theme_light', theme.name);
+    settings.set(updated);
     if (lightIsActive) applyTheme(theme);
-    await setSetting('theme_light', theme.name);
+    openPicker = null;
   }
 
-  // Dark picker: save + apply only if dark picker is currently active.
   async function selectDark(theme: Theme) {
+    const updated = await setSetting('theme_dark', theme.name);
+    settings.set(updated);
     if (darkIsActive) applyTheme(theme);
-    await setSetting('theme_dark', theme.name);
+    openPicker = null;
+  }
+
+  function togglePicker(which: 'light' | 'dark') {
+    openPicker = openPicker === which ? null : which;
   }
 </script>
 
 <div class="section">
-  <!-- Mode selector -->
-  <div class="group-label">{m.appearance_group_mode()}</div>
+  <!-- Mode label -->
+  <div class="group-label">Theme Mode</div>
+
+  <!-- Apple Native Segmented Control -->
   <div class="mode-selector">
-    {#each [['auto', m.appearance_mode_auto()], ['light', m.appearance_mode_light()], ['dark', m.appearance_mode_dark()]] as [value, label] (value)}
-      <button
-        class="mode-btn"
-        class:active={$settings.theme_mode === value}
-        onclick={() => setMode(value)}
-      >
-        {label}
-      </button>
-    {/each}
+    <button
+      class="mode-btn"
+      class:active={$settings.theme_mode === 'auto'}
+      onclick={() => setMode('auto')}
+    >
+      {m.appearance_mode_auto()}
+    </button>
+    <button
+      class="mode-btn"
+      class:active={$settings.theme_mode === 'light'}
+      onclick={() => setMode('light')}
+    >
+      {m.appearance_mode_light()}
+    </button>
+    <button
+      class="mode-btn"
+      class:active={$settings.theme_mode === 'dark'}
+      onclick={() => setMode('dark')}
+    >
+      {m.appearance_mode_dark()}
+    </button>
   </div>
 
   <!-- Light theme picker -->
@@ -98,8 +94,8 @@
       onclick={() => togglePicker('light')}
     >
       <span class="trigger-label">
-        {m.appearance_group_light_theme()}
-        {#if lightIsActive}<span class="active-badge">{m.appearance_badge_active()}</span>{/if}
+        Light Theme
+        {#if lightIsActive}<span class="active-badge">Active</span>{/if}
       </span>
       <span class="trigger-preview">
         <span class="preview-name">{$settings.theme_light}</span>
@@ -118,8 +114,8 @@
       <svg
         class="chevron"
         class:rotated={openPicker === 'light'}
-        width="14"
-        height="14"
+        width="12"
+        height="12"
         viewBox="0 0 24 24"
         fill="currentColor"
       >
@@ -155,8 +151,8 @@
               {/if}
               {#if isSelected}
                 <svg
-                  width="16"
-                  height="16"
+                  width="14"
+                  height="14"
                   viewBox="0 0 24 24"
                   style="fill:{accent}; flex-shrink:0;"
                 >
@@ -178,8 +174,8 @@
       onclick={() => togglePicker('dark')}
     >
       <span class="trigger-label">
-        {m.appearance_group_dark_theme()}
-        {#if darkIsActive}<span class="active-badge">{m.appearance_badge_active()}</span>{/if}
+        Dark Theme
+        {#if darkIsActive}<span class="active-badge">Active</span>{/if}
       </span>
       <span class="trigger-preview">
         <span class="preview-name">{$settings.theme_dark}</span>
@@ -198,8 +194,8 @@
       <svg
         class="chevron"
         class:rotated={openPicker === 'dark'}
-        width="14"
-        height="14"
+        width="12"
+        height="12"
         viewBox="0 0 24 24"
         fill="currentColor"
       >
@@ -235,8 +231,8 @@
               {/if}
               {#if isSelected}
                 <svg
-                  width="16"
-                  height="16"
+                  width="14"
+                  height="14"
                   viewBox="0 0 24 24"
                   style="fill:{accent}; flex-shrink:0;"
                 >
@@ -255,81 +251,70 @@
   .section {
     display: flex;
     flex-direction: column;
+    padding-bottom: 20px;
   }
 
   .group-label {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    font-size: 0.68rem;
-    font-weight: 600;
-    letter-spacing: 0.1em;
-    text-transform: uppercase;
-    color: var(--color-foreground-darker, var(--color-foreground));
-    opacity: 0.6;
+    font-size: 0.74rem;
+    font-weight: 500;
+    color: rgba(255, 255, 255, 0.55);
     margin: 0;
-    padding: 16px 20px 6px;
+    padding: 18px 20px 8px;
+    letter-spacing: -0.01em;
   }
 
   .active-badge {
-    font-size: 0.6rem;
-    letter-spacing: 0.05em;
-    text-transform: uppercase;
-    padding: 1px 5px;
-    border-radius: 3px;
-    background: color-mix(in oklch, var(--color-accent) 20%, transparent);
-    color: var(--color-accent);
-    opacity: 1;
+    font-size: 0.58rem;
+    font-weight: 500;
+    letter-spacing: 0.02em;
+    padding: 2px 6px;
+    border-radius: 4px;
+    background: rgba(255, 255, 255, 0.08);
+    color: rgba(255, 255, 255, 0.65);
   }
 
-  /* Mode selector */
+  /* Native Apple Segmented Control */
   .mode-selector {
     display: flex;
-    margin: 0 20px 4px;
-    border: 1px solid var(--color-separator);
-    border-radius: 6px;
-    overflow: hidden;
+    margin: 0 20px 10px;
+    background: rgba(0, 0, 0, 0.25);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 8px;
+    padding: 2px;
+    gap: 2px;
   }
 
   .mode-btn {
     flex: 1;
-    padding: 6px 0;
-    background: none;
+    padding: 5px 0;
+    background: transparent;
     border: none;
-    border-right: 1px solid var(--color-separator);
-    font-size: 0.8rem;
-    letter-spacing: 0.03em;
-    color: var(--color-foreground-darker, var(--color-foreground));
+    border-radius: 6px;
+    font-size: 0.78rem;
+    font-weight: 400;
+    color: rgba(255, 255, 255, 0.65);
     cursor: pointer;
-    transition:
-      background 0.12s,
-      color 0.12s;
-  }
-
-  .mode-btn:last-child {
-    border-right: none;
+    transition: all 0.15s ease;
   }
 
   .mode-btn:hover {
-    background: color-mix(in oklch, var(--color-background) 88%, var(--color-foreground) 12%);
+    color: rgba(255, 255, 255, 0.9);
   }
 
   .mode-btn.active {
-    background: color-mix(in oklch, var(--color-accent) 18%, transparent);
-    color: var(--color-accent);
-    font-weight: 600;
+    background: rgba(255, 255, 255, 0.14);
+    color: #ffffff;
+    font-weight: 500;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
   }
 
-  /* Collapsible picker groups */
+  /* Inset grouped rows */
   .picker-group {
     margin: 8px 20px 0;
-    border: 1px solid var(--color-separator);
-    border-radius: 6px;
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    border-radius: 8px;
     overflow: hidden;
-  }
-
-  .picker-group:last-child {
-    margin-bottom: 12px;
   }
 
   .picker-trigger {
@@ -345,23 +330,20 @@
   }
 
   .picker-trigger:hover {
-    background: color-mix(in oklch, var(--color-background) 88%, var(--color-foreground) 12%);
+    background: rgba(255, 255, 255, 0.04);
   }
 
   .picker-trigger.open {
-    border-bottom: 1px solid var(--color-separator);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
   }
 
   .trigger-label {
     display: flex;
     align-items: center;
-    gap: 6px;
-    font-size: 0.75rem;
-    font-weight: 600;
-    letter-spacing: 0.05em;
-    text-transform: uppercase;
-    color: var(--color-foreground-darker, var(--color-foreground));
-    opacity: 0.7;
+    gap: 8px;
+    font-size: 0.8rem;
+    font-weight: 500;
+    color: rgba(255, 255, 255, 0.75);
     flex-shrink: 0;
   }
 
@@ -378,14 +360,13 @@
     display: flex;
     gap: 3px;
     flex-shrink: 0;
-    padding: 4px 6px;
+    padding: 3px 5px;
     border-radius: 4px;
   }
 
   .preview-name {
-    font-size: 0.8rem;
-    color: var(--color-foreground-darker, var(--color-foreground));
-    opacity: 0.8;
+    font-size: 0.78rem;
+    color: rgba(255, 255, 255, 0.6);
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -394,8 +375,7 @@
 
   .chevron {
     flex-shrink: 0;
-    color: var(--color-foreground-darker, var(--color-foreground));
-    opacity: 0.5;
+    color: rgba(255, 255, 255, 0.45);
     transition: transform 0.15s;
   }
 
@@ -407,38 +387,36 @@
   .theme-list {
     display: flex;
     flex-direction: column;
-    gap: 6px;
-    padding: 8px 10px 10px;
+    gap: 4px;
+    padding: 6px 8px 8px;
+    max-height: 220px;
+    overflow-y: auto;
   }
 
   .card {
     display: flex;
     align-items: center;
-    gap: 12px;
-    padding: 10px 14px;
+    gap: 10px;
+    padding: 8px 12px;
     border-radius: 6px;
     border: 1px solid transparent;
     background: var(--card-bg);
     cursor: pointer;
     width: 100%;
     text-align: left;
-    transition:
-      border-color 0.15s,
-      background 0.15s;
+    transition: all 0.15s ease;
   }
 
   .card:hover {
-    background: color-mix(in srgb, var(--card-bg) 88%, white 12%);
+    background: color-mix(in srgb, var(--card-bg) 85%, white 15%);
   }
 
-  /* selected but NOT the active picker: dimmed border */
   .card.selected {
-    border-color: color-mix(in oklch, var(--card-accent) 40%, transparent);
+    border-color: rgba(255, 255, 255, 0.25);
   }
 
-  /* selected AND the active picker: full accent border + checkmark shown */
   .card.highlighted {
-    border-color: var(--card-accent);
+    border-color: rgba(255, 255, 255, 0.4);
   }
 
   .swatches {
@@ -448,15 +426,15 @@
   }
 
   .swatch {
-    width: 14px;
-    height: 14px;
+    width: 12px;
+    height: 12px;
     border-radius: 50%;
-    border: 1px solid color-mix(in oklch, var(--color-foreground) 14%, transparent);
+    border: 1px solid rgba(255, 255, 255, 0.12);
   }
 
   .card-name {
-    font-size: 0.85rem;
-    letter-spacing: 0.03em;
+    font-size: 0.8rem;
+    font-weight: 400;
     flex: 1;
   }
 
@@ -468,9 +446,8 @@
   }
 
   .badge {
-    font-size: 0.65rem;
-    letter-spacing: 0.06em;
+    font-size: 0.62rem;
     text-transform: uppercase;
-    opacity: 0.8;
+    opacity: 0.7;
   }
 </style>
