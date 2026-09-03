@@ -263,11 +263,24 @@ fn listen_events(
                 tray::update_menu_items(&tray, true, false);
 
                 let rt = sequence.lock().unwrap().current_round;
-                let s = settings.lock().unwrap();
+                let s_clone = settings.lock().unwrap().clone();
                 match rt {
-                    RoundType::Work => system_bridge.on_work_active(&s),
-                    RoundType::ShortBreak => system_bridge.on_short_break_active(&s),
-                    RoundType::LongBreak => system_bridge.on_long_break_active(&s),
+                    RoundType::Work => {
+                        let _ = app.emit("break:lock:close", ());
+                        system_bridge.on_work_active(&s_clone);
+                    }
+                    RoundType::ShortBreak => {
+                        let dur = s_clone.time_short_break_secs as u64;
+                        let (cur_round, total_rounds) = {
+                            let seq = sequence.lock().unwrap();
+                            (seq.work_round_number, seq.work_rounds_total)
+                        };
+                        system_bridge.on_short_break_active(&s_clone, dur, cur_round, total_rounds);
+                    }
+                    RoundType::LongBreak => {
+                        let _ = app.emit("break:lock:close", ());
+                        system_bridge.on_long_break_active(&s_clone);
+                    }
                 }
             }
 
@@ -414,18 +427,25 @@ fn listen_events(
                     tray::update_menu_items(&tray, false, false);
                 }
 
-                let s = settings.lock().unwrap();
+                let s_clone = settings.lock().unwrap().clone();
                 match next_round {
                     RoundType::Work => {
+                        let _ = app.emit("break:lock:close", ());
                         if !should_auto {
-                            system_bridge.on_timer_idle(&s);
+                            system_bridge.on_timer_idle(&s_clone);
                         }
                     }
                     RoundType::ShortBreak => {
-                        system_bridge.on_short_break_active(&s);
+                        let dur = s_clone.time_short_break_secs as u64;
+                        let (cur_round, total_rounds) = {
+                            let seq = sequence.lock().unwrap();
+                            (seq.work_round_number, seq.work_rounds_total)
+                        };
+                        system_bridge.on_short_break_active(&s_clone, dur, cur_round, total_rounds);
                     }
                     RoundType::LongBreak => {
-                        system_bridge.on_long_break_active(&s);
+                        let _ = app.emit("break:lock:close", ());
+                        system_bridge.on_long_break_active(&s_clone);
                     }
                 }
             }

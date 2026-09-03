@@ -159,13 +159,13 @@ impl SystemBridge {
     }
 
     /// Called when a Short Break starts
-    pub fn on_short_break_active(&self, settings: &Settings) {
-        log::info!("[system_bridge] on_short_break_active: engaging break protections");
+    pub fn on_short_break_active(&self, settings: &Settings, duration_secs: u64, round_number: u32, rounds_total: u32) {
+        log::info!("[system_bridge] on_short_break_active: engaging break protections (dur={}s, round={}/{})", duration_secs, round_number, rounds_total);
         self.sync_settings(settings);
         self.is_work_active.store(false, Ordering::Relaxed);
 
         if settings.system_break_lock_enabled {
-            break_lock::show_break_lock();
+            break_lock::show_break_lock(duration_secs, round_number, rounds_total);
         }
 
         let adult_domains = Self::parse_domains(&settings.system_adult_domains);

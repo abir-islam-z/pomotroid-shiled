@@ -784,13 +784,15 @@ pub fn system_bridge_get_status(
 }
 
 #[tauri::command]
-pub fn system_bridge_test_break_lock() -> Result<bool, String> {
+pub fn system_bridge_test_break_lock(app: AppHandle) -> Result<bool, String> {
+    let _ = app.emit("break:lock:show", serde_json::json!({ "preview": true, "duration_secs": 8 }));
     crate::system_bridge::break_lock::show_break_lock_preview();
     Ok(true)
 }
 
 #[tauri::command]
-pub fn system_bridge_close_break_lock() -> Result<bool, String> {
+pub fn system_bridge_close_break_lock(app: AppHandle) -> Result<bool, String> {
+    let _ = app.emit("break:lock:close", ());
     crate::system_bridge::break_lock::close_break_lock();
     Ok(true)
 }
