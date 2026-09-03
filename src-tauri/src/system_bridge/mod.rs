@@ -1,9 +1,9 @@
-//! Native macOS System Bridge for Pomotroid
+//! Native System Bridge for Pomotroid
 //!
 //! Provides system-level focus blocking (/etc/hosts),
 //! continuous multi-browser URL & Title redirection (Brave, Chrome, Safari, Arc, Edge),
-//! dynamic HTML metadata/RTA rating scanner, desktop media control (Spotify/Music/VLC),
-//! and full-screen hardware break lock overlay.
+//! dynamic HTML metadata/RTA rating scanner, and pure Rust desktop media control.
+//! 100% pure Rust — zero Swift dependencies, zero external binary locks.
 
 pub mod hosts;
 pub mod media;
@@ -77,7 +77,6 @@ impl SystemBridge {
         }
     }
 
-    /// Parse comma-separated blocked domains from settings
     pub fn parse_domains(raw: &str) -> Vec<String> {
         raw.split(',')
             .map(|s| s.trim().to_string())
@@ -99,7 +98,10 @@ impl SystemBridge {
         self.sync_settings(settings);
         self.is_work_active.store(false, Ordering::Relaxed);
         let adult_domains = Self::parse_domains(&settings.system_adult_domains);
-        let _ = hosts::update_hosts(false, &[], settings.system_adult_shield_enabled, &adult_domains);
+        let adult_shield = settings.system_adult_shield_enabled;
+        thread::spawn(move || {
+            let _ = hosts::update_hosts(false, &[], adult_shield, &adult_domains);
+        });
     }
 
     /// Called when a Work round starts or resumes
@@ -108,31 +110,34 @@ impl SystemBridge {
         self.sync_settings(settings);
         self.is_work_active.store(true, Ordering::Relaxed);
 
-        // 1. Ensure break lock overlay is closed
+        // 1. Ensure break lock is closed
         break_lock::close_break_lock();
 
-        // 2. Apply /etc/hosts site blocking
+        // 2. Apply /etc/hosts & browser redirection in background (never blocks timer thread)
         let domains = Self::parse_domains(&settings.system_blocked_domains);
         let adult_domains = Self::parse_domains(&settings.system_adult_domains);
-        if settings.system_block_enabled {
-            let _ = hosts::update_hosts(true, &domains, settings.system_adult_shield_enabled, &adult_domains);
-        } else {
-            let _ = hosts::update_hosts(false, &[], settings.system_adult_shield_enabled, &adult_domains);
-        }
+        let block_enabled = settings.system_block_enabled;
+        let adult_enabled = settings.system_adult_shield_enabled;
+        let scanner = Arc::clone(&self.meta_scanner);
+        let media_pause_enabled = settings.system_media_pause_enabled;
 
-        // 3. Immediate browser redirection sweep
-        browsers::redirect_external_browsers(
-            &domains,
-            settings.system_block_enabled,
-            settings.system_adult_shield_enabled,
-            &adult_domains,
-            &self.meta_scanner,
-        );
-
-        // 4. Resume media playback if enabled
-        if settings.system_media_pause_enabled {
-            media::resume_media();
-        }
+        thread::spawn(move || {
+            if block_enabled {
+                let _ = hosts::update_hosts(true, &domains, adult_enabled, &adult_domains);
+            } else {
+                let _ = hosts::update_hosts(false, &[], adult_enabled, &adult_domains);
+            }
+            browsers::redirect_external_browsers(
+                &domains,
+                block_enabled,
+                adult_enabled,
+                &adult_domains,
+                &scanner,
+            );
+            if media_pause_enabled {
+                media::resume_media();
+            }
+        });
     }
 
     /// Called when a Work round is paused
@@ -141,70 +146,78 @@ impl SystemBridge {
         self.sync_settings(settings);
         self.is_work_active.store(false, Ordering::Relaxed);
 
-        // 1. Temporarily lift focus block so user can browse
         let adult_domains = Self::parse_domains(&settings.system_adult_domains);
-        let _ = hosts::update_hosts(false, &[], settings.system_adult_shield_enabled, &adult_domains);
+        let adult_enabled = settings.system_adult_shield_enabled;
+        let media_pause_enabled = settings.system_media_pause_enabled;
 
-        // 2. Pause media playback if enabled
-        if settings.system_media_pause_enabled {
-            let _ = media::pause_all_media();
-        }
+        thread::spawn(move || {
+            let _ = hosts::update_hosts(false, &[], adult_enabled, &adult_domains);
+            if media_pause_enabled {
+                let _ = media::pause_all_media();
+            }
+        });
     }
 
     /// Called when a Short Break starts
     pub fn on_short_break_active(&self, settings: &Settings) {
-        log::info!("[system_bridge] on_short_break_active: launching break lock & pausing media");
+        log::info!("[system_bridge] on_short_break_active: engaging break protections");
         self.sync_settings(settings);
         self.is_work_active.store(false, Ordering::Relaxed);
 
-        // 1. Lift focus block for break time (adult shield stays active 24/7)
-        let adult_domains = Self::parse_domains(&settings.system_adult_domains);
-        let _ = hosts::update_hosts(false, &[], settings.system_adult_shield_enabled, &adult_domains);
-
-        // 2. Pause media playback
-        if settings.system_media_pause_enabled {
-            let _ = media::pause_all_media();
-        }
-
-        // 3. Launch full-screen hardware break lock overlay if enabled
         if settings.system_break_lock_enabled {
             break_lock::show_break_lock();
         }
+
+        let adult_domains = Self::parse_domains(&settings.system_adult_domains);
+        let adult_enabled = settings.system_adult_shield_enabled;
+        let media_pause_enabled = settings.system_media_pause_enabled;
+
+        thread::spawn(move || {
+            let _ = hosts::update_hosts(false, &[], adult_enabled, &adult_domains);
+            if media_pause_enabled {
+                let _ = media::pause_all_media();
+            }
+        });
     }
 
     /// Called when a Long Break starts
     pub fn on_long_break_active(&self, settings: &Settings) {
-        log::info!("[system_bridge] on_long_break_active: pausing media");
+        log::info!("[system_bridge] on_long_break_active: engaging break protections");
         self.sync_settings(settings);
         self.is_work_active.store(false, Ordering::Relaxed);
-
-        // Lift focus block (adult shield stays active 24/7)
-        let adult_domains = Self::parse_domains(&settings.system_adult_domains);
-        let _ = hosts::update_hosts(false, &[], settings.system_adult_shield_enabled, &adult_domains);
-
-        // Pause media
-        if settings.system_media_pause_enabled {
-            let _ = media::pause_all_media();
-        }
-
         break_lock::close_break_lock();
+
+        let adult_domains = Self::parse_domains(&settings.system_adult_domains);
+        let adult_enabled = settings.system_adult_shield_enabled;
+        let media_pause_enabled = settings.system_media_pause_enabled;
+
+        thread::spawn(move || {
+            let _ = hosts::update_hosts(false, &[], adult_enabled, &adult_domains);
+            if media_pause_enabled {
+                let _ = media::pause_all_media();
+            }
+        });
     }
 
     /// Called when timer is reset or idle
     pub fn on_timer_idle(&self, settings: &Settings) {
-        log::info!("[system_bridge] on_timer_idle: cleaning up blocks and locks");
+        log::info!("[system_bridge] on_timer_idle: cleaning up blocks");
         self.sync_settings(settings);
         self.is_work_active.store(false, Ordering::Relaxed);
+        break_lock::close_break_lock();
 
         let adult_domains = Self::parse_domains(&settings.system_adult_domains);
-        let _ = hosts::update_hosts(false, &[], settings.system_adult_shield_enabled, &adult_domains);
-        break_lock::close_break_lock();
+        let adult_enabled = settings.system_adult_shield_enabled;
+
+        thread::spawn(move || {
+            let _ = hosts::update_hosts(false, &[], adult_enabled, &adult_domains);
+        });
     }
 
     /// Called on app shutdown
     pub fn on_shutdown(&self) {
         log::info!("[system_bridge] on_shutdown: removing all Pomotroid blocks");
-        let _ = hosts::clean_all();
         break_lock::close_break_lock();
+        let _ = hosts::clean_all();
     }
 }

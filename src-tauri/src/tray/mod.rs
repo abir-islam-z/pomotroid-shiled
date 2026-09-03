@@ -17,6 +17,7 @@
 /// when they are absent, preventing the abort.
 use std::f32::consts::{FRAC_PI_2, PI, TAU};
 use std::sync::{Arc, Mutex};
+use std::sync::atomic::AtomicBool;
 
 use tauri::{
     image::Image,
@@ -107,6 +108,7 @@ pub struct TrayMenuItems {
     pub toggle: MenuItem<tauri::Wry>,
     pub skip: MenuItem<tauri::Wry>,
     pub reset_round: MenuItem<tauri::Wry>,
+    pub media_toggle: MenuItem<tauri::Wry>,
 }
 
 /// Tauri-managed state for the tray icon (uses the default Wry runtime).
@@ -115,6 +117,8 @@ pub struct TrayState {
     pub colors: Mutex<TrayColors>,
     pub countdown_mode: Mutex<bool>,
     pub menu_items: Mutex<Option<TrayMenuItems>>,
+    /// Tracks whether Pomotroid has paused media via tray (toggles label).
+    pub media_paused_by_app: AtomicBool,
 }
 
 impl TrayState {
@@ -124,6 +128,7 @@ impl TrayState {
             colors: Mutex::new(TrayColors::default()),
             countdown_mode: Mutex::new(false),
             menu_items: Mutex::new(None),
+            media_paused_by_app: AtomicBool::new(false),
         })
     }
 }
@@ -246,6 +251,14 @@ pub fn create_tray(app: &AppHandle, state: &Arc<TrayState>) {
         Ok(i) => i,
         Err(e) => { log::warn!("[tray] menu item error: {e}"); return; }
     };
+    let media_item = match MenuItem::with_id(app, "media-toggle", "Pause / Resume Music", true, None::<&str>) {
+        Ok(i) => i,
+        Err(e) => { log::warn!("[tray] menu item error: {e}"); return; }
+    };
+    let sep2 = match PredefinedMenuItem::separator(app) {
+        Ok(i) => i,
+        Err(e) => { log::warn!("[tray] menu item error: {e}"); return; }
+    };
     let show_item = match MenuItem::with_id(app, "show", "Show", true, None::<&str>) {
         Ok(i) => i,
         Err(e) => { log::warn!("[tray] menu item error: {e}"); return; }
@@ -254,7 +267,7 @@ pub fn create_tray(app: &AppHandle, state: &Arc<TrayState>) {
         Ok(i) => i,
         Err(e) => { log::warn!("[tray] menu item error: {e}"); return; }
     };
-    let menu = match Menu::with_items(app, &[&toggle_item, &skip_item, &reset_item, &sep, &show_item, &exit_item]) {
+    let menu = match Menu::with_items(app, &[&toggle_item, &skip_item, &reset_item, &sep, &media_item, &sep2, &show_item, &exit_item]) {
         Ok(m) => m,
         Err(e) => { log::warn!("[tray] menu error: {e}"); return; }
     };
@@ -325,6 +338,10 @@ pub fn create_tray(app: &AppHandle, state: &Arc<TrayState>) {
                         let _ = window.set_focus();
                     }
                 }
+                "media-toggle" => {
+                    log::info!("[tray] media-toggle clicked");
+                    crate::system_bridge::media::toggle_system_media();
+                }
                 "exit" => {
                     log::info!("[tray] exit");
                     app.exit(0);
@@ -341,6 +358,7 @@ pub fn create_tray(app: &AppHandle, state: &Arc<TrayState>) {
                 toggle: toggle_item,
                 skip: skip_item,
                 reset_round: reset_item,
+                media_toggle: media_item,
             });
             log::info!("[tray] created");
         }
@@ -371,15 +389,25 @@ pub fn destroy_tray(state: &Arc<TrayState>) {
 /// - `paused`: show pause bars over the progress arc
 /// - `progress`: 0.0 (empty) to 1.0 (full, i.e. elapsed/total)
 pub fn update_icon(state: &Arc<TrayState>, round_type: &str, paused: bool, progress: f32) {
-    let guard = state.icon.lock().unwrap();
-    let Some(tray) = guard.as_ref() else { return };
+    let state_clone = Arc::clone(state);
+    let rt = round_type.to_string();
+    std::thread::spawn(move || {
+        let Ok(guard) = state_clone.icon.try_lock() else { return };
+        let Some(tray) = guard.as_ref() else { return };
 
-    let colors = state.colors.lock().unwrap().clone();
-    let countdown = *state.countdown_mode.lock().unwrap();
-    let bytes = render_tray_icon_rgba(&colors, paused, progress, round_type, countdown);
+        let colors = {
+            let Ok(c) = state_clone.colors.try_lock() else { return };
+            c.clone()
+        };
+        let countdown = {
+            let Ok(cd) = state_clone.countdown_mode.try_lock() else { return };
+            *cd
+        };
+        let bytes = render_tray_icon_rgba(&colors, paused, progress, &rt, countdown);
 
-    let image = Image::new_owned(bytes, SIZE, SIZE);
-    let _ = tray.set_icon(Some(image));
+        let image = Image::new_owned(bytes, SIZE, SIZE);
+        let _ = tray.set_icon(Some(image));
+    });
 }
 
 // ---------------------------------------------------------------------------
@@ -387,21 +415,20 @@ pub fn update_icon(state: &Arc<TrayState>, round_type: &str, paused: bool, progr
 // ---------------------------------------------------------------------------
 
 /// Update the tray menu items to reflect the current timer state.
-///
-/// - `is_running`: timer is actively counting down.
-/// - `is_paused`: timer has been started and then paused (elapsed > 0, not running).
-///
-/// No-op when the tray menu has not been created yet.
+/// Runs asynchronously and uses try_lock so it NEVER blocks or deadlocks the timer thread.
 pub fn update_menu_items(state: &Arc<TrayState>, is_running: bool, is_paused: bool) {
-    let guard = state.menu_items.lock().unwrap();
-    let Some(items) = guard.as_ref() else { return };
+    let state_clone = Arc::clone(state);
+    std::thread::spawn(move || {
+        let Ok(guard) = state_clone.menu_items.try_lock() else { return };
+        let Some(items) = guard.as_ref() else { return };
 
-    let toggle_label = if is_running { "Pause" } else if is_paused { "Resume" } else { "Start" };
-    let controls_enabled = is_running || is_paused;
+        let toggle_label = if is_running { "Pause" } else if is_paused { "Resume" } else { "Start" };
+        let controls_enabled = is_running || is_paused;
 
-    let _ = items.toggle.set_text(toggle_label);
-    let _ = items.skip.set_enabled(controls_enabled);
-    let _ = items.reset_round.set_enabled(controls_enabled);
+        let _ = items.toggle.set_text(toggle_label);
+        let _ = items.skip.set_enabled(controls_enabled);
+        let _ = items.reset_round.set_enabled(controls_enabled);
+    });
 }
 
 // ---------------------------------------------------------------------------

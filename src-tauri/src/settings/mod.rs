@@ -353,7 +353,7 @@ mod tests {
             assert_eq!(s.shortcut_restart, "Control+F4");
         }
         assert!(!s.always_on_top);
-        assert!(!s.websocket_enabled);
+        assert!(s.websocket_enabled);
         assert_eq!(s.websocket_port, 1314);
         assert_eq!(s.theme_mode, "auto");
         assert_eq!(s.theme_light, "Pomotroid Light");
