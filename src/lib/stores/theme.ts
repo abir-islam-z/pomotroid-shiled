@@ -35,4 +35,10 @@ export function applyTheme(theme: Theme): void {
     root.style.setProperty('--color-theme-glass-subtle', hexToRgba(bgHex, 0.5));
     root.style.setProperty('--color-theme-glass-deep', hexToRgba(bgHex, 0.88));
   }
+
+  // Set active theme primary color
+  const focusHex = theme.colors['--color-focus-round'];
+  if (focusHex) {
+    root.style.setProperty('--color-active-theme', focusHex);
+  }
 }

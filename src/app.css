@@ -10,6 +10,7 @@
   --color-foreground: #F2F4F8;        /* Clean Pearl Text */
   --color-foreground-darker: #8C94A6; /* Refined Muted Text */
   --color-accent: #FF5A52;            /* Primary Soft Accent */
+  --color-active-theme: var(--color-focus-round); /* Active theme primary color */
 
   /* Glassmorphic tokens */
   --color-separator: rgba(255, 255, 255, 0.08);
