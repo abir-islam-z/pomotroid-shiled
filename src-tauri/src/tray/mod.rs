@@ -440,12 +440,11 @@ pub fn update_menu_items(state: &Arc<TrayState>, is_running: bool, is_paused: bo
 // density displays; the larger source means the circle stays clean either way.
 const SIZE: u32 = 64;
 const CENTER: f32 = SIZE as f32 / 2.0;
-const RADIUS: f32 = CENTER - 5.0; // 5 px margin keeps the stroke inside the canvas
-const STROKE_WIDTH: f32 = 6.0;
-// Track opacity: the "empty" part of the ring at this brightness on a dark panel.
-// 22% white on #1a1a1a ≈ #383838 — invisible. 65% ≈ #a6a6a6 — clearly visible.
-const TRACK_ALPHA: u8 = 165; // ≈ 65 %
+const RADIUS: f32 = CENTER - 6.0; // Margin keeps the thick stroke inside the canvas
+const STROKE_WIDTH: f32 = 8.5; // High-visibility stroke matching Apple menu bar glyph weights
+const TRACK_ALPHA: u8 = 95; // Crisp frosted white background track
 
+#[allow(dead_code)]
 fn rgba_color(c: [u8; 4]) -> Color {
     Color::from_rgba8(c[0], c[1], c[2], c[3])
 }
@@ -456,7 +455,7 @@ fn rgba_color(c: [u8; 4]) -> Color {
 /// icon reads as a clear circle regardless of panel colour or scale factor,
 /// unlike a solid filled disc which looks like a dark blob at small sizes.
 pub fn render_tray_icon_rgba(
-    colors: &TrayColors,
+    _colors: &TrayColors,
     paused: bool,
     progress: f32,
     round_type: &str,
@@ -472,11 +471,8 @@ pub fn render_tray_icon_rgba(
         ..Default::default()
     };
 
-    // Track ring: full circle at low opacity — defines the circular shape.
-    {
-        let [r, g, b, _] = colors.foreground;
-        paint.set_color(Color::from_rgba8(r, g, b, TRACK_ALPHA));
-    }
+    // Track ring: clean, crisp frosted white track visible on any menu bar / wallpaper
+    paint.set_color(Color::from_rgba8(255, 255, 255, TRACK_ALPHA));
     let ring = {
         let mut pb = PathBuilder::new();
         pb.push_circle(CENTER, CENTER, RADIUS);
@@ -484,11 +480,11 @@ pub fn render_tray_icon_rgba(
     };
     pixmap.stroke_path(&ring, &paint, &stroke, Transform::identity(), None);
 
-    // Round-type color: used for both the progress arc and the pause bars.
+    // Round-type color: high-luminance Apple vibrant colors that pop clearly in menu bar
     let round_color = match round_type {
-        "short-break" => rgba_color(colors.short_round),
-        "long-break"  => rgba_color(colors.long_round),
-        _             => rgba_color(colors.focus_round),
+        "short-break" => Color::from_rgba8(52, 199, 89, 255),  // Vibrant Apple Emerald #34C759
+        "long-break"  => Color::from_rgba8(10, 132, 255, 255), // Vibrant Apple Cyan #0A84FF
+        _             => Color::from_rgba8(255, 69, 58, 255),  // Vibrant Apple Coral #FF453A
     };
 
     // Progress arc from 12 o'clock, clockwise, in the round-type colour.
@@ -502,6 +498,16 @@ pub fn render_tray_icon_rgba(
         let end   = start + sweep;
         let path  = build_arc_path(CENTER, CENTER, RADIUS, start, end);
         pixmap.stroke_path(&path, &paint, &stroke, Transform::identity(), None);
+    } else {
+        // When idle / zero progress: draw a crisp, luminous white outline
+        // so the app icon is unmistakably visible and sharp on the menu bar
+        paint.set_color(Color::from_rgba8(255, 255, 255, 220));
+        let ring = {
+            let mut pb = PathBuilder::new();
+            pb.push_circle(CENTER, CENTER, RADIUS);
+            pb.finish().expect("ring path")
+        };
+        pixmap.stroke_path(&ring, &paint, &stroke, Transform::identity(), None);
     }
 
     if paused {

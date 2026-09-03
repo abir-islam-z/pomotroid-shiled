@@ -142,6 +142,9 @@ pub fn run() {
             app.manage(Arc::clone(&timer.system_bridge));
             app.manage(timer);
 
+            // Clean up any stale focus blocks on startup
+            let _ = system_bridge::hosts::clean_all();
+
             // Create initial tray icon if tray_icon_enabled is on, or if an
             // existing user has min_to_tray enabled (backwards compatibility).
             //
@@ -419,6 +422,13 @@ pub fn run() {
             system_bridge_resume_media,
             resize_main_window,
         ])
-        .run(tauri::generate_context!())
-        .expect("error while running tauri application");
+        .build(tauri::generate_context!())
+        .expect("error while building tauri application")
+        .run(|_app_handle, event| {
+            if let tauri::RunEvent::ExitRequested { .. } | tauri::RunEvent::Exit = event {
+                log::info!("[lifecycle] application exiting — cleaning up system hosts blocks");
+                let _ = system_bridge::hosts::clean_all();
+                system_bridge::break_lock::close_break_lock();
+            }
+        });
 }
