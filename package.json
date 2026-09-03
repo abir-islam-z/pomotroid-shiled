@@ -19,7 +19,9 @@
     "check": "npm run paraglide:compile && svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
     "check:watch": "npm run paraglide:compile && svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --watch",
     "format": "prettier --write .",
-    "tauri": "tauri"
+    "tauri": "tauri",
+    "build:app": "npm run tauri build -- --bundles app",
+    "build:dmg": "node scripts/build-dmg.js"
   },
   "dependencies": {
     "@inlang/paraglide-js": "^2.19.0",
