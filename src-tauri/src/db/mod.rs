@@ -12,7 +12,8 @@ pub type DbState = Arc<Mutex<Connection>>;
 /// enable WAL mode for better concurrent read performance,
 /// and run any pending schema migrations.
 pub fn open(app_data_dir: &std::path::Path) -> Result<DbState> {
-    let db_path = app_data_dir.join("pomotroid.db");
+    let db_path = app_data_dir.join("pomotroid_shield.db");
+    log::info!("[db] opened pomotroid_shield.db at {:?}", db_path);
     let conn = Connection::open(&db_path)?;
 
     // WAL mode: readers don't block writers and vice-versa.

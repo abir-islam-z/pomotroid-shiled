@@ -10,6 +10,7 @@ use tauri::{AppHandle, Emitter, Manager};
 use crate::audio::{AudioCue, AudioManager};
 use crate::db::{queries, DbState};
 use crate::settings::Settings;
+use crate::system_bridge::SystemBridge;
 use crate::tray::{self, TrayState};
 use crate::websocket::{self, WsState};
 
@@ -61,6 +62,7 @@ pub struct TimerController {
     /// Kept alive so TrayState is not dropped if lib.rs forgets its copy.
     #[allow(dead_code)]
     tray: Arc<TrayState>,
+    pub system_bridge: Arc<SystemBridge>,
 }
 
 impl TimerController {
@@ -90,6 +92,8 @@ impl TimerController {
         let shared_thread = Arc::clone(&shared);
         let engine_thread = engine.clone();
         let tray_thread = Arc::clone(&tray);
+        let system_bridge = Arc::new(SystemBridge::new());
+        let system_bridge_thread = Arc::clone(&system_bridge);
 
         std::thread::Builder::new()
             .name("timer-events".to_string())
@@ -104,6 +108,7 @@ impl TimerController {
                         engine: engine_thread,
                         tray: tray_thread,
                         db,
+                        system_bridge: system_bridge_thread,
                     },
                 );
             })
@@ -115,6 +120,7 @@ impl TimerController {
             settings: settings_arc,
             shared,
             tray,
+            system_bridge,
         }
     }
 
@@ -229,6 +235,7 @@ struct ListenContext {
     engine: EngineHandle,
     tray: Arc<TrayState>,
     db: DbState,
+    system_bridge: Arc<SystemBridge>,
 }
 
 fn listen_events(
@@ -236,7 +243,7 @@ fn listen_events(
     event_rx: std::sync::mpsc::Receiver<TimerEvent>,
     ctx: ListenContext,
 ) {
-    let ListenContext { sequence, settings, shared, engine, tray, db } = ctx;
+    let ListenContext { sequence, settings, shared, engine, tray, db, system_bridge } = ctx;
     // Track last tray progress to throttle redraws to ≥ 1% delta.
     let mut last_tray_progress: f32 = -1.0;
     // Active session row ID for recording (None = not started yet).
@@ -252,6 +259,14 @@ fn listen_events(
                     websocket::broadcast_started(&ws, total_secs);
                 }
                 tray::update_menu_items(&tray, true, false);
+
+                let rt = sequence.lock().unwrap().current_round;
+                let s = settings.lock().unwrap();
+                match rt {
+                    RoundType::Work => system_bridge.on_work_active(&s),
+                    RoundType::ShortBreak => system_bridge.on_short_break_active(&s),
+                    RoundType::LongBreak => system_bridge.on_long_break_active(&s),
+                }
             }
 
             TimerEvent::Tick { elapsed_secs, total_secs } => {
@@ -391,10 +406,22 @@ fn listen_events(
                     log::debug!("[timer] auto-starting {}", next_round.as_str());
                     engine.send(TimerCommand::Start);
                 } else {
-                    // Timer is idle waiting for the user to start the new round.
-                    // Reset the tray menu to "Start" so it doesn't keep showing
-                    // "Pause" from the round that just completed.
                     tray::update_menu_items(&tray, false, false);
+                }
+
+                let s = settings.lock().unwrap();
+                match next_round {
+                    RoundType::Work => {
+                        if !should_auto {
+                            system_bridge.on_timer_idle(&s);
+                        }
+                    }
+                    RoundType::ShortBreak => {
+                        system_bridge.on_short_break_active(&s);
+                    }
+                    RoundType::LongBreak => {
+                        system_bridge.on_long_break_active(&s);
+                    }
                 }
             }
 
@@ -404,6 +431,12 @@ fn listen_events(
                 let _ = app.emit("timer:paused", serde_json::json!({ "elapsed_secs": elapsed_secs }));
                 if let Some(ws) = app.try_state::<Arc<WsState>>() {
                     websocket::broadcast_paused(&ws, elapsed_secs);
+                }
+
+                let rt = sequence.lock().unwrap().current_round;
+                let s = settings.lock().unwrap();
+                if rt == RoundType::Work {
+                    system_bridge.on_work_paused(&s);
                 }
 
                 // Show pause bars in tray.
@@ -424,6 +457,12 @@ fn listen_events(
                 let _ = app.emit("timer:resumed", serde_json::json!({ "elapsed_secs": elapsed_secs }));
                 if let Some(ws) = app.try_state::<Arc<WsState>>() {
                     websocket::broadcast_resumed(&ws, elapsed_secs);
+                }
+
+                let rt = sequence.lock().unwrap().current_round;
+                let s = settings.lock().unwrap();
+                if rt == RoundType::Work {
+                    system_bridge.on_work_active(&s);
                 }
 
                 // Restore arc in tray.
@@ -454,6 +493,9 @@ fn listen_events(
                 if let Some(ws) = app.try_state::<Arc<WsState>>() {
                     websocket::broadcast_reset(&ws);
                 }
+
+                let s = settings.lock().unwrap();
+                system_bridge.on_timer_idle(&s);
 
                 // Prime the engine with the current round's duration so the
                 // next Start uses the correct (possibly settings-updated)

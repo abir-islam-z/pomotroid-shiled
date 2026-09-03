@@ -747,6 +747,59 @@ pub struct HeatmapStats {
     pub longest_streak: u32,
 }
 
+// ---------------------------------------------------------------------------
+// System Bridge Commands (Site Blocking, Break Lock, Media Control)
+// ---------------------------------------------------------------------------
+
+#[tauri::command]
+pub fn system_bridge_get_status(
+    _bridge: tauri::State<'_, Arc<crate::system_bridge::SystemBridge>>,
+    db: tauri::State<'_, DbState>,
+) -> Result<serde_json::Value, String> {
+    let s = {
+        let conn = db.lock().map_err(|e| e.to_string())?;
+        crate::settings::load(&conn).map_err(|e| e.to_string())?
+    };
+
+    let writable = crate::system_bridge::hosts::is_hosts_writable();
+    let lock_running = crate::system_bridge::break_lock::is_break_lock_running();
+    let playing = crate::system_bridge::media::get_playing_apps();
+
+    Ok(serde_json::json!({
+        "is_hosts_writable": writable,
+        "is_break_lock_running": lock_running,
+        "playing_media_apps": playing,
+        "system_block_enabled": s.system_block_enabled,
+        "system_adult_shield_enabled": s.system_adult_shield_enabled,
+        "system_break_lock_enabled": s.system_break_lock_enabled,
+        "system_media_pause_enabled": s.system_media_pause_enabled,
+        "system_blocked_domains": s.system_blocked_domains,
+    }))
+}
+
+#[tauri::command]
+pub fn system_bridge_test_break_lock() -> Result<bool, String> {
+    crate::system_bridge::break_lock::show_break_lock_preview();
+    Ok(true)
+}
+
+#[tauri::command]
+pub fn system_bridge_close_break_lock() -> Result<bool, String> {
+    crate::system_bridge::break_lock::close_break_lock();
+    Ok(true)
+}
+
+#[tauri::command]
+pub fn system_bridge_pause_media() -> Result<Vec<String>, String> {
+    Ok(crate::system_bridge::media::pause_all_media())
+}
+
+#[tauri::command]
+pub fn system_bridge_resume_media() -> Result<bool, String> {
+    crate::system_bridge::media::resume_media();
+    Ok(true)
+}
+
 #[cfg(test)]
 mod tests {
     use rusqlite::Connection;

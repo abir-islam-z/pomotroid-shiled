@@ -1,7 +1,7 @@
 {
-  "name": "pomotroid",
+  "name": "pomotroid-shield",
   "version": "1.7.1",
-  "description": "A simple and visually-pleasing Pomodoro timer",
+  "description": "Pomotroid Shield - Pomodoro timer with native system blocking, locking, and media control",
   "author": {
     "email": "flyweight@pm.me",
     "name": "Christopher Murphy",

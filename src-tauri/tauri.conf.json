@@ -1,8 +1,8 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "Pomotroid",
+  "productName": "Pomotroid Shield",
   "version": "1.7.1",
-  "identifier": "com.splode.pomotroid",
+  "identifier": "com.abirislam.pomotroid-shield",
   "build": {
     "beforeDevCommand": "npm run dev",
     "devUrl": "http://localhost:1420",
@@ -12,7 +12,7 @@
   "app": {
     "windows": [
       {
-        "title": "Pomotroid",
+        "title": "Pomotroid Shield",
         "width": 360,
         "height": 478,
         "minWidth": 240,
@@ -50,7 +50,7 @@
       "icons/icon.ico"
     ],
     "category": "Utility",
-    "copyright": "Copyright © 2017–2026 Christopher Murphy (Splode). MIT License.",
+    "copyright": "Copyright \u00a9 2017\u20132026 Christopher Murphy (Splode). MIT License.",
     "shortDescription": "A beautiful Pomodoro timer",
     "longDescription": "Pomotroid is a simple, configurable and visually pleasing Pomodoro timer. Keep track of your work sessions and take breaks with a clean, themeable interface.",
     "linux": {

@@ -17,17 +17,19 @@
   import NotificationsSection from '$lib/components/settings/sections/NotificationsSection.svelte';
   import ShortcutsSection from '$lib/components/settings/sections/ShortcutsSection.svelte';
   import SystemSection from '$lib/components/settings/sections/SystemSection.svelte';
+  import ShieldSection from '$lib/components/settings/sections/ShieldSection.svelte';
   import AboutSection from '$lib/components/settings/sections/AboutSection.svelte';
 
   import * as m from '$paraglide/messages.js';
 
-  type Section = 'timer' | 'appearance' | 'notifications' | 'shortcuts' | 'system' | 'about';
+  type Section = 'timer' | 'appearance' | 'notifications' | 'shortcuts' | 'shield' | 'system' | 'about';
 
   const SECTIONS: { id: Section; label: () => string }[] = [
     { id: 'timer', label: m.nav_timer },
     { id: 'appearance', label: m.nav_appearance },
     { id: 'notifications', label: m.nav_notifications },
     { id: 'shortcuts', label: m.nav_shortcuts },
+    { id: 'shield', label: () => 'Shield & Focus' },
     { id: 'system', label: m.nav_system },
     { id: 'about', label: m.nav_about },
   ];
@@ -163,6 +165,8 @@
         <NotificationsSection />
       {:else if active === 'shortcuts'}
         <ShortcutsSection />
+      {:else if active === 'shield'}
+        <ShieldSection />
       {:else if active === 'system'}
         <SystemSection />
       {:else if active === 'about'}

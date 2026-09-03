@@ -43,6 +43,11 @@ const defaults: Settings = {
   local_shortcut_volume_up: 'ArrowUp',
   local_shortcut_mute: 'm',
   local_shortcut_fullscreen: 'F11',
+  system_block_enabled: true,
+  system_adult_shield_enabled: true,
+  system_break_lock_enabled: true,
+  system_media_pause_enabled: true,
+  system_blocked_domains: 'twitter.com, x.com, facebook.com, instagram.com, youtube.com, reddit.com, tiktok.com, linkedin.com, netflix.com, twitch.tv',
 };
 
 export const settings = writable<Settings>(defaults);

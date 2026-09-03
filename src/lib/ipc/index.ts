@@ -132,3 +132,22 @@ export const onThemesChanged = (cb: (themes: Theme[]) => void): Promise<Unlisten
 
 export const onSessionsCleared = (cb: () => void): Promise<UnlistenFn> =>
   listen<void>('sessions:cleared', () => cb());
+
+// --- System Bridge (Site Blocking, Break Lock, Media Controls) ---
+
+export interface SystemBridgeStatus {
+  is_hosts_writable: boolean;
+  is_break_lock_running: boolean;
+  playing_media_apps: string[];
+  system_block_enabled: boolean;
+  system_adult_shield_enabled: boolean;
+  system_break_lock_enabled: boolean;
+  system_media_pause_enabled: boolean;
+  system_blocked_domains: string;
+}
+
+export const systemBridgeGetStatus = () => invoke<SystemBridgeStatus>('system_bridge_get_status');
+export const systemBridgeTestBreakLock = () => invoke<boolean>('system_bridge_test_break_lock');
+export const systemBridgeCloseBreakLock = () => invoke<boolean>('system_bridge_close_break_lock');
+export const systemBridgePauseMedia = () => invoke<string[]>('system_bridge_pause_media');
+export const systemBridgeResumeMedia = () => invoke<boolean>('system_bridge_resume_media');

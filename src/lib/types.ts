@@ -56,6 +56,11 @@ export interface Settings {
   local_shortcut_volume_up: string;
   local_shortcut_mute: string;
   local_shortcut_fullscreen: string;
+  system_block_enabled: boolean;
+  system_adult_shield_enabled: boolean;
+  system_break_lock_enabled: boolean;
+  system_media_pause_enabled: boolean;
+  system_blocked_domains: string;
 }
 
 /** Returned by `check_update` — describes an available update. */

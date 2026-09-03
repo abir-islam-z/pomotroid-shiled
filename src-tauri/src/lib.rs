@@ -8,6 +8,7 @@ pub mod themes;
 pub mod timer;
 pub mod tray;
 pub mod websocket;
+pub mod system_bridge;
 
 use std::sync::Arc;
 
@@ -23,6 +24,7 @@ use commands::{
     install_update,
     audio_clear_custom, audio_get_custom_info, audio_set_custom,
     get_log_dir, open_log_dir,
+    system_bridge_get_status, system_bridge_test_break_lock, system_bridge_close_break_lock, system_bridge_pause_media, system_bridge_resume_media,
     notification_show,
     settings_get, settings_reset_defaults, settings_set,
     shortcuts_reload,
@@ -136,6 +138,7 @@ pub fn run() {
                 Arc::clone(&tray_state),
                 db.clone(),
             );
+            app.manage(Arc::clone(&timer.system_bridge));
             app.manage(timer);
 
             // Create initial tray icon if tray_icon_enabled is on, or if an
@@ -334,6 +337,10 @@ pub fn run() {
                             api.prevent_close();
                             let _ = win_for_close.hide();
                         } else {
+                            // Clean up system bridge (unblock /etc/hosts & close break lock)
+                            if let Some(sb) = app_for_close.try_state::<Arc<system_bridge::SystemBridge>>() {
+                                sb.on_shutdown();
+                            }
                             // Main window is truly closing — close child windows if open.
                             for label in ["settings", "stats"] {
                                 if let Some(win) = app_for_close.get_webview_window(label) {
@@ -403,6 +410,12 @@ pub fn run() {
             // Updater
             check_update,
             install_update,
+            // System Bridge
+            system_bridge_get_status,
+            system_bridge_test_break_lock,
+            system_bridge_close_break_lock,
+            system_bridge_pause_media,
+            system_bridge_resume_media,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
