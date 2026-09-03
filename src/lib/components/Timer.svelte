@@ -109,51 +109,52 @@
         {roundLabel(state.round_type)}
       </div>
 
-      <div class="controls-wrapper">
-        <!-- Back: restart current round (Apple Music style rewind) -->
+      <div class="transport-controls" style="--active-theme-color: {roundColor(state.round_type)};">
+        <!-- Back: restart current round -->
         <Tooltip text={m.tooltip_restart_round()}>
           <button class="btn-side" onclick={timerRestartRound} aria-label="Restart round">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
-              <path d="M12 12.75l7.65 5.1a1 1 0 0 0 1.55-.83V6.98a1 1 0 0 0-1.55-.83L12 11.25V6.98a1 1 0 0 0-1.55-.83L2.8 11.27a1 1 0 0 0 0 1.66l7.65 5.12a1 1 0 0 0 1.55-.83v-4.47z"/>
+            <svg width="15" height="15" viewBox="0 0 16 16" fill="currentColor">
+              <polygon points="15,1 6,8 15,15" />
+              <rect x="1" y="1" width="2.5" height="14" rx="0.5" />
             </svg>
           </button>
         </Tooltip>
 
-        <!-- Play / Pause — Translucent Apple Glass Button with smooth icon fade -->
+        <!-- Play / Pause -->
         <button
           class="play-pause"
+          class:running={state.is_running}
           onclick={timerToggle}
           aria-label={state.is_running ? 'Pause' : 'Play'}
         >
           {#key state.is_running}
-            <span class="icon" in:fade={{ duration: 140 }}>
+            <span class="icon" in:fade={{ duration: 120 }}>
               {#if state.is_running}
-                <!-- Apple Style Smooth Rounded Dual Bars -->
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
-                  <rect x="5.5" y="4" width="4.5" height="16" rx="2.25"/>
-                  <rect x="14" y="4" width="4.5" height="16" rx="2.25"/>
+                  <rect x="6" y="3.5" width="4" height="17" rx="1.5"/>
+                  <rect x="14" y="3.5" width="4" height="17" rx="1.5"/>
                 </svg>
               {:else}
-                <!-- Apple Style Smooth Rounded Play Triangle -->
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" style="margin-left: 2px;">
-                  <path d="M7.05 4.45a1.5 1.5 0 0 1 2.27-1.28l11.5 6.64a1.5 1.5 0 0 1 0 2.6l-11.5 6.64a1.5 1.5 0 0 1-2.27-1.28V4.45z"/>
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" style="margin-left: 2px;">
+                  <polygon points="5,3 21,12 5,21"/>
                 </svg>
               {/if}
             </span>
           {/key}
         </button>
 
-        <!-- Skip: advance to next round (Apple Music style fast-forward) -->
+        <!-- Skip: advance to next round -->
         <Tooltip text={m.tooltip_skip()}>
           <button class="btn-side" onclick={timerSkip} aria-label="Skip round">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
-              <path d="M12 11.25L4.35 6.15A1 1 0 0 0 2.8 6.98v10.04a1 1 0 0 0 1.55.83L12 12.75v4.27a1 1 0 0 0 1.55.83l7.65-5.12a1 1 0 0 0 0-1.66l-7.65-5.12a1 1 0 0 0-1.55.83v4.27z"/>
+            <svg width="15" height="15" viewBox="0 0 16 16" fill="currentColor">
+              <polygon points="1,1 10,8 1,15" />
+              <rect x="12.5" y="1" width="2.5" height="14" rx="0.5" />
             </svg>
           </button>
         </Tooltip>
-
-        <TimerFooter snap={state} />
       </div>
+
+      <TimerFooter snap={state} />
     {/if}
   </div>
 
@@ -184,67 +185,64 @@
     justify-content: center;
   }
 
-  .controls-wrapper {
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 4px 14px;
+  .transport-controls {
+    display: flex;
     align-items: center;
-  }
-  .controls-wrapper > :global(*) {
-    aspect-ratio: 1;
+    justify-content: center;
+    gap: 22px;
+    margin-top: 6px;
   }
 
   .btn-side {
-    background: rgba(255, 255, 255, 0.05);
-    backdrop-filter: blur(14px);
-    -webkit-backdrop-filter: blur(14px);
-    border: 1px solid rgba(255, 255, 255, 0.09);
+    background: none;
+    border: none;
     cursor: pointer;
     color: var(--color-foreground-darker);
     display: flex;
     align-items: center;
     justify-content: center;
-    width: 36px;
-    height: 36px;
+    width: 34px;
+    height: 34px;
     border-radius: 50%;
-    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
-    transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+    transition: all 0.18s cubic-bezier(0.16, 1, 0.3, 1);
   }
 
   .btn-side:hover {
     color: var(--color-foreground);
-    background: rgba(255, 255, 255, 0.12);
-    border-color: rgba(255, 255, 255, 0.2);
-    transform: scale(1.06);
+    background: rgba(255, 255, 255, 0.08);
+    transform: scale(1.08);
   }
 
   .btn-side:active {
-    transform: scale(0.94);
+    transform: scale(0.92);
   }
 
   .play-pause {
-    background: rgba(255, 255, 255, 0.08);
-    backdrop-filter: blur(16px);
-    -webkit-backdrop-filter: blur(16px);
-    border: 1px solid rgba(255, 255, 255, 0.16);
-    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25), inset 0 1px 0 rgba(255, 255, 255, 0.2);
+    background: transparent;
+    border: 1.5px solid var(--color-foreground-darker, rgba(255, 255, 255, 0.35));
+    border-radius: 50%;
     cursor: pointer;
     color: var(--color-foreground);
     display: flex;
     align-items: center;
     justify-content: center;
-    width: 52px;
-    height: 52px;
-    border-radius: 50%;
+    width: 48px;
+    height: 48px;
     transition: all 0.22s cubic-bezier(0.16, 1, 0.3, 1);
-    overflow: hidden;
+    position: relative;
   }
 
   .play-pause:hover {
-    background: rgba(255, 255, 255, 0.15);
-    border-color: rgba(255, 255, 255, 0.3);
-    box-shadow: 0 6px 22px rgba(0, 0, 0, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.3);
-    transform: scale(1.06);
+    color: var(--active-theme-color, var(--color-focus-round));
+    border-color: var(--active-theme-color, var(--color-focus-round));
+    background: color-mix(in srgb, var(--active-theme-color, var(--color-focus-round)) 10%, transparent);
+    box-shadow: 0 0 18px color-mix(in srgb, var(--active-theme-color, var(--color-focus-round)) 22%, transparent);
+    transform: scale(1.05);
+  }
+
+  .play-pause.running {
+    border-color: var(--active-theme-color, var(--color-focus-round));
+    color: var(--active-theme-color, var(--color-focus-round));
   }
 
   .play-pause:active {
@@ -259,16 +257,16 @@
 
   .round-label {
     font-size: 0.68rem;
-    font-weight: 700;
+    font-weight: 650;
     letter-spacing: 0.14em;
     text-transform: uppercase;
     padding: 3px 12px;
     border-radius: 20px;
-    background: rgba(255, 255, 255, 0.05);
+    background: rgba(255, 255, 255, 0.04);
     backdrop-filter: blur(12px);
     -webkit-backdrop-filter: blur(12px);
-    border: 1px solid rgba(255, 255, 255, 0.08);
+    border: 1px solid rgba(255, 255, 255, 0.07);
     margin-top: -6px;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.18), inset 0 0.5px 0 rgba(255, 255, 255, 0.1);
+    box-shadow: none;
   }
 </style>
