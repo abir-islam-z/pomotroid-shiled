@@ -20,13 +20,14 @@ pub fn should_hide_dock(app: &AppHandle) -> bool {
 /// Explicitly sets the macOS application dock icon using the bundled icon image.
 /// In dev mode (`npm run tauri dev`), Cargo launches the raw unbundled binary
 /// which causes macOS to show the generic terminal "exec" icon in the Dock.
-/// Setting `applicationIconImage` ensures the beautiful Pomotroid icon is always displayed.
+/// Setting `applicationIconImage` and refreshing `dockTile` ensures the Pomotroid
+/// icon is always displayed in the Dock.
 #[cfg(target_os = "macos")]
 pub fn ensure_dock_icon() {
     use objc2::msg_send;
     use objc2::runtime::{AnyClass, AnyObject};
 
-    static ICON_BYTES: &[u8] = include_bytes!("../icons/icon.png");
+    static ICON_BYTES: &[u8] = include_bytes!("../icons/icon.icns");
 
     unsafe {
         let ns_app_class = match AnyClass::get(c"NSApplication") {
@@ -59,6 +60,10 @@ pub fn ensure_dock_icon() {
         let image: *mut AnyObject = msg_send![image, initWithData: data];
         if !image.is_null() {
             let _: () = msg_send![app, setApplicationIconImage: image];
+            let dock_tile: *mut AnyObject = msg_send![app, dockTile];
+            if !dock_tile.is_null() {
+                let _: () = msg_send![dock_tile, display];
+            }
             let _: () = msg_send![image, release];
         }
     }
@@ -69,13 +74,25 @@ pub fn ensure_dock_icon() {
 pub fn set_dock_visible(app: &AppHandle, visible: bool) {
     #[cfg(target_os = "macos")]
     {
-        let policy = if visible && !should_hide_dock(app) {
-            ensure_dock_icon();
+        let is_regular = visible && !should_hide_dock(app);
+        let policy = if is_regular {
             ActivationPolicy::Regular
         } else {
             ActivationPolicy::Accessory
         };
         let _ = app.set_activation_policy(policy);
+        if is_regular {
+            let _ = app.run_on_main_thread(ensure_dock_icon);
+            let app_c = app.clone();
+            std::thread::spawn(move || {
+                // Dock.app registers the restored application asynchronously;
+                // re-apply icon and force dockTile refresh after Mach IPC completes.
+                std::thread::sleep(std::time::Duration::from_millis(60));
+                let _ = app_c.run_on_main_thread(ensure_dock_icon);
+                std::thread::sleep(std::time::Duration::from_millis(150));
+                let _ = app_c.run_on_main_thread(ensure_dock_icon);
+            });
+        }
     }
     #[cfg(not(target_os = "macos"))]
     let _ = (app, visible);
